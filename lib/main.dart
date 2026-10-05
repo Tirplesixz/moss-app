@@ -18,6 +18,8 @@ class MossApp extends StatelessWidget {
       title: 'Moss',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
       home: const AppGate(),
     );
   }

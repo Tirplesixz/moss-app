@@ -119,27 +119,27 @@ class HomeScreen extends ConsumerWidget {
         backgroundColor: theme.background,
         elevation: 0,
         scrolledUnderElevation: 0,
-        toolbarHeight: 68,
+        toolbarHeight: 60,
         title: Row(
           children: [
             Container(
-              width: 34,
-              height: 34,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
-                color: theme.onBackground,
-                borderRadius: BorderRadius.circular(11),
+                color: theme.primary,
+                borderRadius: BorderRadius.circular(9),
               ),
               child: const Icon(
                 Icons.auto_awesome_rounded,
                 color: Colors.white,
-                size: 18,
+                size: 16,
               ),
             ),
             const SizedBox(width: 10),
             Text(
               'Moss',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: theme.onBackground,
                 letterSpacing: -0.6,
@@ -185,6 +185,10 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, color: theme.divider),
+        ),
       ),
       body: SafeArea(
         bottom: false,
@@ -193,7 +197,7 @@ class HomeScreen extends ConsumerWidget {
             Expanded(
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(18, 8, 18, 30),
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -214,9 +218,9 @@ class HomeScreen extends ConsumerWidget {
                         onAction: controller.load,
                       ),
                     TodayHeader(date: state.currentDate),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     _WeekStrip(selectedDate: state.currentDate),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     DoneItemsRow(items: state.doneItems),
                     NowCard(
                       block: state.nowBlock,
@@ -227,7 +231,7 @@ class HomeScreen extends ConsumerWidget {
                       onComplete: () => controller.completeCurrentTask(),
                       onPause: () => controller.togglePause(),
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 24),
                     if (state.overflowTasks.isNotEmpty) ...[
                       _OverflowCard(tasks: state.overflowTasks),
                       const SizedBox(height: 22),
@@ -354,18 +358,13 @@ class _WeekStrip extends StatelessWidget {
     const labels = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
       decoration: BoxDecoration(
-        color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.borderSubtle),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 7),
-          ),
-        ],
+        color: theme.background,
+        border: Border(
+          top: BorderSide(color: theme.divider),
+          bottom: BorderSide(color: theme.divider),
+        ),
       ),
       child: Row(
         children: List.generate(7, (index) {
@@ -388,28 +387,19 @@ class _WeekStrip extends StatelessWidget {
                 const SizedBox(height: 6),
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  width: 34,
-                  height: 34,
+                  width: 32,
+                  height: 32,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: selected ? theme.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(11),
-                    boxShadow: selected
-                        ? [
-                            BoxShadow(
-                              color: theme.primary.withValues(alpha: 0.25),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ]
-                        : null,
+                    color: selected ? theme.nowFill : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     '${day.day}',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: selected ? Colors.white : theme.onBackground,
+                      color: selected ? theme.primary : theme.onBackground,
                     ),
                   ),
                 ),

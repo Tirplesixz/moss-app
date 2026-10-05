@@ -51,32 +51,25 @@ class _QuickAddBarState extends State<QuickAddBar> {
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
-        top: 12,
+        top: 10,
         bottom: MediaQuery.of(context).viewInsets.bottom > 0
             ? 12
             : MediaQuery.of(context).padding.bottom + 10,
       ),
       decoration: BoxDecoration(
-        color: theme.cardBackground.withValues(alpha: 0.96),
+        color: theme.cardBackground,
         border: Border(top: BorderSide(color: theme.borderSubtle)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, -6),
-          ),
-        ],
       ),
       child: Row(
         children: [
           // Text Input Field
           Expanded(
             child: Container(
-              height: 48,
+              height: 46,
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: theme.background,
-                borderRadius: BorderRadius.circular(14),
+                color: const Color(0xFFF7F8F9),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: theme.borderSubtle),
               ),
               child: Row(
@@ -118,15 +111,15 @@ class _QuickAddBarState extends State<QuickAddBar> {
           // Primary Add Button (+)
           Material(
             color: theme.primary,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(10),
             elevation: 0,
             child: InkWell(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(10),
               onTap: _handleSubmit,
               onLongPress: _handleManualOpen,
               child: const SizedBox(
-                width: 48,
-                height: 48,
+                width: 46,
+                height: 46,
                 child: Icon(Icons.add_rounded, color: Colors.white, size: 24),
               ),
             ),

@@ -149,6 +149,12 @@ class AppTheme {
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
       ),
+      cardTheme: const CardThemeData(
+        color: AppColors.cardBackground,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        margin: EdgeInsets.zero,
+      ),
       dividerTheme: const DividerThemeData(
         color: AppColors.divider,
         thickness: 1,
@@ -159,7 +165,7 @@ class AppTheme {
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.onPrimary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           elevation: 0,

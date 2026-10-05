@@ -32,16 +32,25 @@ class NowCard extends StatelessWidget {
     if (block == null) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
-          color: theme.cardBackground,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: theme.borderSubtle),
+          color: const Color(0xFFF8F9FA),
+          borderRadius: BorderRadius.circular(10),
+          border: Border(
+            left: BorderSide(color: theme.nowBorder, width: 4),
+            top: BorderSide(color: theme.borderSubtle),
+            right: BorderSide(color: theme.borderSubtle),
+            bottom: BorderSide(color: theme.borderSubtle),
+          ),
         ),
         child: Column(
           children: [
-            Icon(Icons.spa_outlined, size: 32, color: theme.primary),
-            const SizedBox(height: 8),
+            Icon(
+              Icons.event_available_outlined,
+              size: 26,
+              color: theme.primary,
+            ),
+            const SizedBox(height: 7),
             Text(
               'ไม่มีงานที่ต้องทำในขณะนี้',
               style: TextStyle(
@@ -73,17 +82,15 @@ class NowCard extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         color: theme.nowFill,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.nowBorder, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: theme.nowBorder.withValues(alpha: 0.12),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(10),
+        border: Border(
+          left: BorderSide(color: theme.primary, width: 4),
+          top: BorderSide(color: theme.nowBorder),
+          right: BorderSide(color: theme.nowBorder),
+          bottom: BorderSide(color: theme.nowBorder),
+        ),
       ),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -119,7 +126,7 @@ class NowCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: theme.cardBackground.withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(7),
                   border: Border.all(
                     color: theme.nowBorder.withValues(alpha: 0.5),
                   ),
@@ -141,19 +148,19 @@ class NowCard extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
               color: theme.onBackground,
               height: 1.25,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // Thin progress bar
           ClipRRect(
             borderRadius: BorderRadius.circular(3),
             child: SizedBox(
-              height: 5,
+              height: 4,
               child: LinearProgressIndicator(
                 value: progress.clamp(0.0, 1.0),
                 backgroundColor: theme.cardBackground.withValues(alpha: 0.7),
@@ -163,7 +170,7 @@ class NowCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // Secondary Action Buttons
           Row(
@@ -192,7 +199,7 @@ class NowCard extends StatelessWidget {
                       color: theme.nowBorder.withValues(alpha: 0.8),
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
@@ -221,7 +228,7 @@ class NowCard extends StatelessWidget {
                     ),
                     side: BorderSide(color: theme.borderSubtle),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),

@@ -17,22 +17,22 @@ class TodayHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
+          'วันนี้',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: theme.onBackground,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
           ThaiDateFormatter.formatFullDate(date),
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
             color: theme.textMuted,
-            letterSpacing: 0.2,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'ตอนนี้',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
-            color: theme.onBackground,
-            letterSpacing: -0.5,
+            letterSpacing: 0.1,
           ),
         ),
       ],

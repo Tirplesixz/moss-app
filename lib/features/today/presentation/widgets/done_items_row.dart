@@ -25,12 +25,10 @@ class _DoneItemsRowState extends State<DoneItemsRow> {
     final totalCount = widget.items.length;
 
     return Container(
-      margin: const EdgeInsets.only(top: 8, bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 7),
       decoration: BoxDecoration(
-        color: theme.cardBackground.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: theme.borderSubtle.withValues(alpha: 0.5)),
+        border: Border(bottom: BorderSide(color: theme.divider)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

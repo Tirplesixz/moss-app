@@ -75,7 +75,7 @@ class TimelineSection extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
 
         if (items.isEmpty)
           Container(
@@ -91,7 +91,7 @@ class TimelineSection extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: items.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            separatorBuilder: (context, index) => const SizedBox(height: 6),
             itemBuilder: (context, index) {
               final item = items[index];
               if (item is TimelineBlockItem) {
@@ -116,45 +116,52 @@ class TimelineSection extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => onTapBlock?.call(item),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
-            color: theme.cardBackground,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: item.isFixed
-                  ? theme.nowBorder.withValues(alpha: 0.5)
-                  : theme.borderSubtle,
+            color: item.isFixed ? theme.nowFill : const Color(0xFFF8F9FA),
+            borderRadius: BorderRadius.circular(8),
+            border: Border(
+              left: BorderSide(
+                color: item.isFixed ? theme.primary : theme.nowBorder,
+                width: 4,
+              ),
+              top: BorderSide(color: theme.borderSubtle),
+              right: BorderSide(color: theme.borderSubtle),
+              bottom: BorderSide(color: theme.borderSubtle),
             ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Time badge
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    timeRange,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: theme.textSecondary,
+              SizedBox(
+                width: 82,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      timeRange,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: theme.textSecondary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${item.block.durationMin} นาที',
-                    style: TextStyle(fontSize: 11, color: theme.textMuted),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      '${item.block.durationMin} นาที',
+                      style: TextStyle(fontSize: 11, color: theme.textMuted),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 8),
 
               // Divider
-              Container(width: 1, height: 32, color: theme.divider),
-              const SizedBox(width: 14),
+              Container(width: 1, height: 34, color: theme.divider),
+              const SizedBox(width: 12),
 
               // Title & badges
               Expanded(
@@ -184,7 +191,7 @@ class TimelineSection extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: theme.nowFill.withValues(alpha: 0.8),
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(5),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,

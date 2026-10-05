@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_primitives.dart';
 
 class OnboardingScreen extends StatelessWidget {
   final Future<void> Function() onComplete;
@@ -13,76 +14,81 @@ class OnboardingScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.background,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: theme.primary,
-                  borderRadius: BorderRadius.circular(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              MossSpacing.x6,
+              MossSpacing.x8,
+              MossSpacing.x6,
+              MossSpacing.x6,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight - MossSpacing.x8,
+              ),
+              child: IntrinsicHeight(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: MossSpacing.x12,
+                      height: MossSpacing.x12,
+                      decoration: BoxDecoration(
+                        color: theme.primary,
+                        borderRadius: BorderRadius.circular(MossRadii.lg),
+                      ),
+                      child: Icon(
+                        Icons.auto_awesome_rounded,
+                        color: theme.onPrimary,
+                        size: MossIconSizes.lg,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'งานด่วนเข้า\nก็ยังไม่ลน',
+                      style: Theme.of(context).textTheme.displaySmall,
+                    ),
+                    const SizedBox(height: MossSpacing.x4),
+                    Text(
+                      'ใส่งานพร้อมเวลาที่ต้องใช้ Moss จะหาช่วงว่างและจัดวันนี้ให้ใหม่ โดยไม่แตะเวลาที่คุณล็อกไว้',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: theme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: MossSpacing.x8),
+                    const _Benefit(
+                      icon: Icons.bolt_rounded,
+                      title: 'พิมพ์งานด่วนได้ทันที',
+                    ),
+                    const _Benefit(
+                      icon: Icons.calendar_month_rounded,
+                      title: 'เห็นว่างานไหนถูกขยับก่อนยืนยัน',
+                    ),
+                    const _Benefit(
+                      icon: Icons.undo_rounded,
+                      title: 'เปลี่ยนใจแล้วเลิกทำได้',
+                    ),
+                    const Spacer(),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: onComplete,
+                        child: const Text('เริ่มจัดวันนี้'),
+                      ),
+                    ),
+                    const SizedBox(height: MossSpacing.x2),
+                    Center(
+                      child: Text(
+                        'ข้อมูลทั้งหมดอยู่บนเครื่องของคุณ',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: theme.textMuted),
+                      ),
+                    ),
+                  ],
                 ),
-                child: const Icon(
-                  Icons.auto_awesome_rounded,
-                  color: Colors.white,
-                ),
               ),
-              const Spacer(),
-              Text(
-                'งานด่วนเข้า\nก็ยังไม่ลน',
-                style: TextStyle(
-                  color: theme.onBackground,
-                  fontSize: 40,
-                  height: 1.12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1.2,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'ใส่งานพร้อมเวลาที่ต้องใช้ Moss จะหาช่วงว่างและจัดวันนี้ให้ใหม่ โดยไม่แตะเวลาที่คุณล็อกไว้',
-                style: TextStyle(
-                  color: theme.textSecondary,
-                  fontSize: 16,
-                  height: 1.55,
-                ),
-              ),
-              const SizedBox(height: 30),
-              const _Benefit(
-                icon: Icons.bolt_rounded,
-                title: 'พิมพ์งานด่วนได้ทันที',
-              ),
-              const _Benefit(
-                icon: Icons.calendar_month_rounded,
-                title: 'เห็นว่างานไหนถูกขยับก่อนยืนยัน',
-              ),
-              const _Benefit(
-                icon: Icons.undo_rounded,
-                title: 'เปลี่ยนใจแล้วเลิกทำได้',
-              ),
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: onComplete,
-                  child: const Text(
-                    'เริ่มจัดวันนี้',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  'ข้อมูลทั้งหมดอยู่บนเครื่องของคุณ',
-                  style: TextStyle(color: theme.textMuted, fontSize: 12),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -99,28 +105,23 @@ class _Benefit extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.mossTheme;
+    final components = context.mossComponents;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: MossSpacing.x3),
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: MossSpacing.x10,
+            height: MossSpacing.x10,
             decoration: BoxDecoration(
-              color: theme.nowFill,
-              borderRadius: BorderRadius.circular(11),
+              color: components.fixedTaskSurface,
+              borderRadius: BorderRadius.circular(MossRadii.md),
             ),
-            child: Icon(icon, color: theme.primary, size: 19),
+            child: Icon(icon, color: theme.primary, size: MossIconSizes.md),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: MossSpacing.x3),
           Expanded(
-            child: Text(
-              title,
-              style: TextStyle(
-                color: theme.onBackground,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
           ),
         ],
       ),

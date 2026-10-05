@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_primitives.dart';
 import '../../../../core/utils/thai_date_formatter.dart';
 import '../../domain/block.dart';
 import '../../domain/task.dart';
@@ -29,6 +30,7 @@ class BlockDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.mossTheme;
+    final components = context.mossComponents;
     final title = block.title ?? task?.title ?? 'ไม่มีชื่อ';
     final timeRange = ThaiDateFormatter.formatTimeRange(
       block.startAt.toLocal(),
@@ -37,14 +39,16 @@ class BlockDetailSheet extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.background,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        color: theme.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(MossRadii.lg),
+        ),
       ),
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 16,
-        bottom: MediaQuery.of(context).padding.bottom + 16,
+        left: MossSpacing.x5,
+        right: MossSpacing.x5,
+        top: MossSpacing.x4,
+        bottom: MediaQuery.of(context).padding.bottom + MossSpacing.x4,
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -62,7 +66,7 @@ class BlockDetailSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: MossSpacing.x4),
 
             // Header
             Row(
@@ -70,80 +74,72 @@ class BlockDetailSheet extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: theme.onBackground,
-                    ),
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
                 if (block.isFixed || block.locked)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: MossSpacing.x2,
+                      vertical: MossSpacing.x1,
                     ),
                     decoration: BoxDecoration(
-                      color: theme.nowFill,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: theme.nowBorder.withValues(alpha: 0.5),
-                      ),
+                      color: components.fixedTaskSurface,
+                      borderRadius: BorderRadius.circular(MossRadii.sm),
+                      border: Border.all(color: components.fixedTaskBorder),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.lock_rounded,
-                          size: 12,
+                          size: MossIconSizes.sm,
                           color: theme.textSecondary,
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: MossSpacing.x1),
                         Text(
-                          block.isFixed ? 'Fixed' : 'Locked',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: theme.textSecondary,
-                          ),
+                          block.isFixed ? 'เวลาตายตัว' : 'ล็อกเวลา',
+                          style: Theme.of(context).textTheme.labelMedium,
                         ),
                       ],
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: MossSpacing.x2),
 
             // Time & Duration
             Row(
               children: [
                 Icon(
                   Icons.access_time_rounded,
-                  size: 16,
+                  size: MossIconSizes.sm,
                   color: theme.textMuted,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: MossSpacing.x2),
                 Text(
                   '$timeRange (${block.durationMin} นาที)',
-                  style: TextStyle(fontSize: 14, color: theme.textSecondary),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: theme.textSecondary,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
               ],
             ),
 
             if (task?.deadlineAt != null) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: MossSpacing.x2),
               Row(
                 children: [
                   Icon(
                     Icons.flag_outlined,
-                    size: 16,
+                    size: MossIconSizes.sm,
                     color: theme.urgentAccent,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: MossSpacing.x2),
                   Text(
-                    'เดดไลน์: ${ThaiDateFormatter.formatTime(task!.deadlineAt!.toLocal())}',
-                    style: TextStyle(
-                      fontSize: 13,
+                    'กำหนดส่ง: ${ThaiDateFormatter.formatTime(task!.deadlineAt!.toLocal())}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: theme.urgentAccent,
                       fontWeight: FontWeight.w500,
                     ),
@@ -152,9 +148,9 @@ class BlockDetailSheet extends StatelessWidget {
               ),
             ],
 
-            const SizedBox(height: 20),
+            const SizedBox(height: MossSpacing.x5),
             const Divider(height: 1),
-            const SizedBox(height: 12),
+            const SizedBox(height: MossSpacing.x3),
 
             // Action Buttons
             ListTile(
@@ -183,8 +179,8 @@ class BlockDetailSheet extends StatelessWidget {
                 ),
                 title: Text(
                   block.locked
-                      ? 'ปลดล็อคเวลา (ให้ขยับอัตโนมัติได้)'
-                      : 'ล็อคเวลานี้ (ไม่ให้ตารางขยับ)',
+                      ? 'ปลดล็อกเวลา (ให้ขยับอัตโนมัติได้)'
+                      : 'ล็อกเวลานี้ (ไม่ให้ตารางขยับ)',
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
                     color: theme.onBackground,

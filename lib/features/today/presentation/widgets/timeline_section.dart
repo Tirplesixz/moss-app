@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_primitives.dart';
+import '../../../../core/theme/moss_motion.dart';
 import '../../../../core/utils/thai_date_formatter.dart';
 import '../../../../core/widgets/dashed_line.dart';
 import '../../domain/today_item.dart';
@@ -35,21 +37,15 @@ class TimelineSection extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'ต่อจากนี้',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: theme.onBackground,
-              ),
-            ),
+            Text('ต่อจากนี้', style: Theme.of(context).textTheme.titleLarge),
             if (hasMoreThan4)
               TextButton(
                 onPressed: onToggleShowAll,
                 style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(50, 30),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MossSpacing.x1,
+                  ),
+                  minimumSize: const Size(48, 48),
                 ),
                 child: Row(
                   children: [
@@ -57,33 +53,39 @@ class TimelineSection extends StatelessWidget {
                       isShowingAll
                           ? 'แสดงเฉพาะ 4 งานแรก'
                           : 'ดูทั้งวัน ($totalCount งาน)',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.labelLarge?.copyWith(color: theme.primary),
+                    ),
+                    AnimatedRotation(
+                      turns: isShowingAll ? 0.5 : 0,
+                      duration: MossMotion.duration(
+                        context,
+                        MossMotion.standard,
+                      ),
+                      curve: MossMotion.stateCurve,
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: MossIconSizes.md,
                         color: theme.primary,
                       ),
-                    ),
-                    Icon(
-                      isShowingAll
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      size: 16,
-                      color: theme.primary,
                     ),
                   ],
                 ),
               ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: MossSpacing.x2),
 
         if (items.isEmpty)
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 24),
+            padding: const EdgeInsets.symmetric(vertical: MossSpacing.x6),
             alignment: Alignment.center,
             child: Text(
               'ไม่มีงานที่จัดตารางไว้หลังจากนี้',
-              style: TextStyle(fontSize: 14, color: theme.textMuted),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: theme.textMuted),
             ),
           )
         else
@@ -91,15 +93,24 @@ class TimelineSection extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: items.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 6),
+            separatorBuilder: (context, index) =>
+                const SizedBox(height: MossSpacing.x2),
             itemBuilder: (context, index) {
               final item = items[index];
-              if (item is TimelineBlockItem) {
-                return _buildBlockRow(context, item);
-              } else if (item is TimelineGapItem) {
-                return _buildCollapsedGapRow(context, item);
-              }
-              return const SizedBox.shrink();
+              final child = switch (item) {
+                TimelineBlockItem() => _buildBlockRow(context, item),
+                TimelineGapItem() => _buildCollapsedGapRow(context, item),
+              };
+              final itemKey = switch (item) {
+                TimelineBlockItem() => 'block-${item.block.id}',
+                TimelineGapItem() =>
+                  'gap-${item.startAt.millisecondsSinceEpoch}',
+              };
+              return _AnimatedTimelineEntry(
+                key: ValueKey(itemKey),
+                index: index,
+                child: child,
+              );
             },
           ),
       ],
@@ -108,112 +119,120 @@ class TimelineSection extends StatelessWidget {
 
   Widget _buildBlockRow(BuildContext context, TimelineBlockItem item) {
     final theme = context.mossTheme;
+    final components = context.mossComponents;
     final startLocal = item.block.startAt.toLocal();
     final endLocal = item.block.endAt.toLocal();
-    final timeRange = ThaiDateFormatter.formatTimeRange(startLocal, endLocal);
+    final timeRange = ThaiDateFormatter.formatTimeRange(
+      startLocal,
+      endLocal,
+    ).replaceFirst(' น.', '');
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => onTapBlock?.call(item),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(MossRadii.md),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          padding: const EdgeInsets.all(MossSpacing.x3),
           decoration: BoxDecoration(
-            color: item.isFixed ? theme.nowFill : const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(8),
+            color: item.isFixed
+                ? components.fixedTaskSurface
+                : components.taskSurface,
+            borderRadius: BorderRadius.circular(MossRadii.md),
             border: Border.all(
-              color: item.isFixed ? theme.nowBorder : theme.borderSubtle,
+              color: item.isFixed
+                  ? components.fixedTaskBorder
+                  : components.taskBorder,
             ),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Time badge
-              SizedBox(
-                width: 82,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      timeRange,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: theme.textSecondary,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final textScale = MediaQuery.textScalerOf(context).scale(1);
+              final stacked = constraints.maxWidth < 360 || textScale > 1.35;
+              final badge = item.isFixed || item.isLocked
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: MossSpacing.x2,
+                        vertical: MossSpacing.x1,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${item.block.durationMin} นาที',
-                      style: TextStyle(fontSize: 11, color: theme.textMuted),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // Divider
-              Container(width: 1, height: 34, color: theme.divider),
-              const SizedBox(width: 12),
-
-              // Title & badges
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            item.displayTitle,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: theme.onBackground,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                      decoration: BoxDecoration(
+                        color: components.activeTaskSurface,
+                        borderRadius: BorderRadius.circular(MossRadii.sm),
+                        border: Border.all(color: components.activeTaskBorder),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.lock_outline_rounded,
+                            size: MossIconSizes.sm,
+                            color: theme.textSecondary,
                           ),
-                        ),
-                        if (item.isFixed || item.isLocked) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: theme.nowFill.withValues(alpha: 0.8),
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.lock_outline_rounded,
-                                  size: 11,
-                                  color: theme.textSecondary,
-                                ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  item.isFixed ? 'Fixed' : 'Locked',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: theme.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          const SizedBox(width: MossSpacing.x1),
+                          Text(
+                            item.isFixed ? 'เวลาตายตัว' : 'ล็อกเวลา',
+                            style: Theme.of(context).textTheme.labelMedium,
                           ),
                         ],
-                      ],
+                      ),
+                    )
+                  : null;
+              final title = Text(
+                item.displayTitle,
+                style: Theme.of(context).textTheme.titleMedium,
+                maxLines: stacked ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+              );
+              final meta = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    timeRange,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: theme.textSecondary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
+                    maxLines: 1,
+                    softWrap: false,
+                  ),
+                  const SizedBox(height: MossSpacing.x1),
+                  Text(
+                    '${item.block.durationMin} นาที',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: theme.textMuted),
+                  ),
+                ],
+              );
+              if (stacked) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    title,
+                    if (badge != null) ...[
+                      const SizedBox(height: MossSpacing.x2),
+                      badge,
+                    ],
+                    const SizedBox(height: MossSpacing.x3),
+                    meta,
                   ],
-                ),
-              ),
-            ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(width: 104, child: meta),
+                  const SizedBox(width: MossSpacing.x2),
+                  Container(width: 1, height: 40, color: theme.divider),
+                  const SizedBox(width: MossSpacing.x3),
+                  Expanded(child: title),
+                  if (badge != null) ...[
+                    const SizedBox(width: MossSpacing.x2),
+                    badge,
+                  ],
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -227,40 +246,105 @@ class TimelineSection extends StatelessWidget {
     final gapText = ThaiDateFormatter.formatGap(gap.durationMin);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: MossSpacing.x1),
       child: Row(
         children: [
           Expanded(
-            child: DashedLine(color: theme.divider, dashWidth: 4, dashGap: 4),
+            child: DashedLine(
+              color: theme.divider,
+              dashWidth: MossSpacing.x1,
+              dashGap: MossSpacing.x1,
+            ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: MossSpacing.x3),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   Icons.hourglass_empty_rounded,
-                  size: 12,
+                  size: MossIconSizes.sm,
                   color: theme.textMuted,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: MossSpacing.x1),
                 Text(
                   gapText,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: theme.textMuted,
-                    letterSpacing: 0.2,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: theme.textMuted),
                 ),
               ],
             ),
           ),
           Expanded(
-            child: DashedLine(color: theme.divider, dashWidth: 4, dashGap: 4),
+            child: DashedLine(
+              color: theme.divider,
+              dashWidth: MossSpacing.x1,
+              dashGap: MossSpacing.x1,
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AnimatedTimelineEntry extends StatefulWidget {
+  final int index;
+  final Widget child;
+
+  const _AnimatedTimelineEntry({
+    super.key,
+    required this.index,
+    required this.child,
+  });
+
+  @override
+  State<_AnimatedTimelineEntry> createState() => _AnimatedTimelineEntryState();
+}
+
+class _AnimatedTimelineEntryState extends State<_AnimatedTimelineEntry>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: MossMotion.emphasis,
+  );
+  late final Animation<double> _opacity = CurvedAnimation(
+    parent: _controller,
+    curve: MossMotion.enterCurve,
+  );
+  late final Animation<Offset> _offset = Tween<Offset>(
+    begin: const Offset(0, 0.06),
+    end: Offset.zero,
+  ).animate(_opacity);
+  bool _scheduled = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_scheduled) return;
+    _scheduled = true;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.value = 1;
+      return;
+    }
+    final delay = MossMotion.stagger * widget.index.clamp(0, 6);
+    Future<void>.delayed(delay, () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: SlideTransition(position: _offset, child: widget.child),
     );
   }
 }

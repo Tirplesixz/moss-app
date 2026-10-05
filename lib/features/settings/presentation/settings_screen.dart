@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_primitives.dart';
 import '../../today/presentation/today_controller.dart';
 import '../domain/app_settings.dart';
 import 'mock_paywall_screen.dart';
@@ -79,56 +80,76 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         actions: [TextButton(onPressed: _save, child: const Text('บันทึก'))],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(MossSpacing.x4),
         children: [
-          Text('เวลาทำงาน', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 10),
-          _SettingTile(
-            icon: Icons.wb_sunny_outlined,
-            title: 'เริ่มวัน',
-            value: _settings.workdayStart,
-            onTap: _pickStart,
-          ),
-          _SettingTile(
-            icon: Icons.nights_stay_outlined,
-            title: 'จบวัน',
-            value: _settings.workdayEnd,
-            onTap: _pickEnd,
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'เวลาพักระหว่างงาน',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 10),
-          SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(value: 0, label: Text('ไม่มี')),
-              ButtonSegment(value: 5, label: Text('5 นาที')),
-              ButtonSegment(value: 10, label: Text('10 นาที')),
-              ButtonSegment(value: 15, label: Text('15 นาที')),
-            ],
-            selected: {_settings.bufferMin},
-            onSelectionChanged: (value) {
-              setState(
-                () => _settings = _settings.copyWith(bufferMin: value.first),
-              );
-            },
-          ),
-          const SizedBox(height: 30),
-          ListTile(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            tileColor: theme.nowFill,
-            leading: Icon(Icons.auto_awesome_rounded, color: theme.primary),
-            title: const Text('ดู Moss Plus'),
-            subtitle: const Text('ช่วยเราประเมินความสนใจก่อนเปิดขายจริง'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => const MockPaywallScreen(),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'เวลาทำงาน',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: MossSpacing.x2),
+                  _SettingTile(
+                    icon: Icons.wb_sunny_outlined,
+                    title: 'เริ่มวัน',
+                    value: _settings.workdayStart,
+                    onTap: _pickStart,
+                  ),
+                  _SettingTile(
+                    icon: Icons.nights_stay_outlined,
+                    title: 'จบวัน',
+                    value: _settings.workdayEnd,
+                    onTap: _pickEnd,
+                  ),
+                  const SizedBox(height: MossSpacing.x5),
+                  Text(
+                    'เวลาพักระหว่างงาน',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: MossSpacing.x2),
+                  SegmentedButton<int>(
+                    segments: const [
+                      ButtonSegment(value: 0, label: Text('ไม่มี')),
+                      ButtonSegment(value: 5, label: Text('5 นาที')),
+                      ButtonSegment(value: 10, label: Text('10 นาที')),
+                      ButtonSegment(value: 15, label: Text('15 นาที')),
+                    ],
+                    selected: {_settings.bufferMin},
+                    onSelectionChanged: (value) {
+                      setState(
+                        () => _settings = _settings.copyWith(
+                          bufferMin: value.first,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: MossSpacing.x8),
+                  ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(MossRadii.md),
+                    ),
+                    tileColor: theme.nowFill,
+                    leading: Icon(
+                      Icons.auto_awesome_rounded,
+                      color: theme.primary,
+                    ),
+                    title: const Text('ดู Moss Plus'),
+                    subtitle: const Text(
+                      'ช่วยเราประเมินความสนใจก่อนเปิดขายจริง',
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => const MockPaywallScreen(),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -156,14 +177,11 @@ class _SettingTile extends StatelessWidget {
     final theme = context.mossTheme;
     return Card(
       elevation: 0,
-      color: theme.cardBackground,
+      color: theme.surface,
       child: ListTile(
         leading: Icon(icon, color: theme.primary),
         title: Text(title),
-        trailing: Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
+        trailing: Text(value, style: Theme.of(context).textTheme.labelLarge),
         onTap: onTap,
       ),
     );

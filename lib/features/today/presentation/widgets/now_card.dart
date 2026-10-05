@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_primitives.dart';
+import '../../../../core/theme/moss_motion.dart';
 import '../../../../core/utils/thai_date_formatter.dart';
 import '../../../tasks/domain/block.dart';
 import '../../../tasks/domain/task.dart';
@@ -28,36 +30,39 @@ class NowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.mossTheme;
+    final components = context.mossComponents;
 
     if (block == null) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        padding: const EdgeInsets.symmetric(
+          horizontal: MossSpacing.x4,
+          vertical: MossSpacing.x5,
+        ),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8F9FA),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: theme.borderSubtle),
+          color: components.taskSurface,
+          borderRadius: BorderRadius.circular(MossRadii.md),
+          border: Border.all(color: components.taskBorder),
         ),
         child: Column(
           children: [
             Icon(
               Icons.event_available_outlined,
-              size: 26,
+              size: MossIconSizes.lg,
               color: theme.primary,
             ),
-            const SizedBox(height: 7),
+            const SizedBox(height: MossSpacing.x2),
             Text(
               'ไม่มีงานที่ต้องทำในขณะนี้',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: theme.onBackground,
-              ),
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: MossSpacing.x1),
             Text(
               'พักผ่อนได้สบายใจ หรือเพิ่มงานใหม่ด้านล่าง',
-              style: TextStyle(fontSize: 13, color: theme.textMuted),
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: theme.textMuted),
             ),
           ],
         ),
@@ -73,20 +78,25 @@ class NowCard extends StatelessWidget {
         ? 'พักชั่วคราว'
         : ThaiDateFormatter.formatRemainingTime(remainingMinutes);
 
-    return Container(
+    return AnimatedContainer(
+      duration: MossMotion.duration(context, MossMotion.standard),
+      curve: MossMotion.stateCurve,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: theme.nowFill,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: theme.nowBorder),
+        color: components.activeTaskSurface,
+        borderRadius: BorderRadius.circular(MossRadii.md),
+        border: Border.all(color: components.activeTaskBorder),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+      padding: const EdgeInsets.all(MossSpacing.x4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Time range and Remaining badge
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            runAlignment: WrapAlignment.center,
+            spacing: MossSpacing.x3,
+            runSpacing: MossSpacing.x2,
             children: [
               Row(
                 children: [
@@ -98,12 +108,10 @@ class NowCard extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: MossSpacing.x2),
                   Text(
                     timeRange,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       color: theme.textSecondary,
                     ),
                   ),
@@ -111,120 +119,103 @@ class NowCard extends StatelessWidget {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
+                  horizontal: MossSpacing.x3,
+                  vertical: MossSpacing.x1,
                 ),
                 decoration: BoxDecoration(
-                  color: theme.cardBackground.withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(7),
-                  border: Border.all(
-                    color: theme.nowBorder.withValues(alpha: 0.5),
-                  ),
+                  color: theme.surface,
+                  borderRadius: BorderRadius.circular(MossRadii.sm),
+                  border: Border.all(color: components.activeTaskBorder),
                 ),
                 child: Text(
                   remainingText,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: isPaused ? theme.textMuted : theme.onBackground,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: MossSpacing.x3),
 
           // Title
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: theme.onBackground,
-              height: 1.25,
-            ),
-          ),
-          const SizedBox(height: 12),
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: MossSpacing.x3),
 
           // Thin progress bar
           ClipRRect(
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(MossRadii.sm),
             child: SizedBox(
               height: 4,
               child: LinearProgressIndicator(
                 value: progress.clamp(0.0, 1.0),
-                backgroundColor: theme.cardBackground.withValues(alpha: 0.7),
+                backgroundColor: theme.surface,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   isPaused ? theme.textMuted : theme.primary,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: MossSpacing.x4),
 
           // Secondary Action Buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onComplete,
-                  icon: Icon(
-                    Icons.check_rounded,
-                    size: 18,
-                    color: theme.primary,
-                  ),
-                  label: Text(
-                    'เสร็จแล้ว',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: theme.primary,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: theme.cardBackground.withValues(
-                      alpha: 0.9,
-                    ),
-                    side: BorderSide(
-                      color: theme.nowBorder.withValues(alpha: 0.8),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stackActions =
+                  constraints.maxWidth < 320 ||
+                  MediaQuery.textScalerOf(context).scale(1) > 1.35;
+              final completeButton = OutlinedButton.icon(
+                onPressed: onComplete,
+                icon: Icon(
+                  Icons.check_rounded,
+                  size: MossIconSizes.md,
+                  color: theme.primary,
+                ),
+                label: const Text('เสร็จแล้ว'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.primary,
+                  backgroundColor: theme.surface,
+                  side: BorderSide(color: components.activeTaskBorder),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(MossRadii.md),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onPause,
-                  icon: Icon(
-                    isPaused ? Icons.play_arrow_rounded : Icons.coffee_rounded,
-                    size: 18,
-                    color: theme.textSecondary,
-                  ),
-                  label: Text(
-                    isPaused ? 'ทำต่อ' : 'พัก',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: theme.textSecondary,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: theme.cardBackground.withValues(
-                      alpha: 0.9,
-                    ),
-                    side: BorderSide(color: theme.borderSubtle),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+              );
+              final pauseButton = OutlinedButton.icon(
+                onPressed: onPause,
+                icon: Icon(
+                  isPaused ? Icons.play_arrow_rounded : Icons.coffee_rounded,
+                  size: MossIconSizes.md,
+                  color: theme.textSecondary,
+                ),
+                label: Text(isPaused ? 'ทำต่อ' : 'พัก'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.textSecondary,
+                  backgroundColor: theme.surface,
+                  side: BorderSide(color: theme.borderSubtle),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(MossRadii.md),
                   ),
                 ),
-              ),
-            ],
+              );
+              if (stackActions) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    completeButton,
+                    const SizedBox(height: MossSpacing.x2),
+                    pauseButton,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: completeButton),
+                  const SizedBox(width: MossSpacing.x2),
+                  Expanded(child: pauseButton),
+                ],
+              );
+            },
           ),
         ],
       ),

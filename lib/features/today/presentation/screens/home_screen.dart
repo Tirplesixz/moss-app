@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_primitives.dart';
+import '../../../../core/theme/moss_motion.dart';
 import '../../../tasks/domain/block.dart';
 import '../../../tasks/domain/task.dart';
 import '../../../tasks/presentation/screens/add_task_screen.dart';
@@ -119,32 +121,24 @@ class HomeScreen extends ConsumerWidget {
         backgroundColor: theme.background,
         elevation: 0,
         scrolledUnderElevation: 0,
-        toolbarHeight: 60,
+        toolbarHeight: 64,
         title: Row(
           children: [
             Container(
-              width: 30,
-              height: 30,
+              width: MossSpacing.x8,
+              height: MossSpacing.x8,
               decoration: BoxDecoration(
                 color: theme.primary,
-                borderRadius: BorderRadius.circular(9),
+                borderRadius: BorderRadius.circular(MossRadii.md),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.auto_awesome_rounded,
-                color: Colors.white,
-                size: 16,
+                color: theme.onPrimary,
+                size: MossIconSizes.sm,
               ),
             ),
-            const SizedBox(width: 10),
-            Text(
-              'Moss',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: theme.onBackground,
-                letterSpacing: -0.6,
-              ),
-            ),
+            const SizedBox(width: MossSpacing.x2),
+            Text('Moss', style: Theme.of(context).textTheme.titleLarge),
           ],
         ),
         actions: [
@@ -154,20 +148,20 @@ class HomeScreen extends ConsumerWidget {
             icon: Icon(
               Icons.note_add_outlined,
               color: theme.onBackground,
-              size: 21,
+              size: MossIconSizes.md,
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(18),
-              onTap: () => Navigator.push(
+            padding: const EdgeInsets.only(right: MossSpacing.x1),
+            child: IconButton(
+              tooltip: 'การตั้งค่า',
+              onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
               ),
-              child: Container(
-                width: 34,
-                height: 34,
+              icon: Container(
+                width: MossSpacing.x8,
+                height: MossSpacing.x8,
                 decoration: BoxDecoration(
                   color: theme.nowFill,
                   shape: BoxShape.circle,
@@ -197,54 +191,90 @@ class HomeScreen extends ConsumerWidget {
             Expanded(
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (state.isLoading)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: LinearProgressIndicator(
-                          minHeight: 2,
-                          color: theme.primary,
-                          backgroundColor: theme.nowFill,
+                padding: const EdgeInsets.fromLTRB(
+                  MossSpacing.x4,
+                  MossSpacing.x5,
+                  MossSpacing.x4,
+                  MossSpacing.x8,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (state.isLoading)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: LinearProgressIndicator(
+                              minHeight: 2,
+                              color: theme.primary,
+                              backgroundColor: theme.nowFill,
+                            ),
+                          ),
+                        if (state.errorMessage != null)
+                          _StatusCard(
+                            icon: Icons.sync_problem_rounded,
+                            message: state.errorMessage!,
+                            actionLabel: 'ลองอีกครั้ง',
+                            onAction: controller.load,
+                          ),
+                        TodayHeader(date: state.currentDate),
+                        const SizedBox(height: MossSpacing.x4),
+                        _WeekStrip(selectedDate: state.currentDate),
+                        const SizedBox(height: MossSpacing.x4),
+                        DoneItemsRow(items: state.doneItems),
+                        AnimatedSwitcher(
+                          duration: MossMotion.duration(
+                            context,
+                            MossMotion.standard,
+                          ),
+                          switchInCurve: MossMotion.enterCurve,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (child, animation) {
+                            final offset = Tween<Offset>(
+                              begin: const Offset(0, 0.04),
+                              end: Offset.zero,
+                            ).animate(animation);
+                            return FadeTransition(
+                              opacity: animation,
+                              child: SlideTransition(
+                                position: offset,
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: NowCard(
+                            key: ValueKey(
+                              '${state.nowBlock?.id ?? 'empty'}-${state.isPaused}',
+                            ),
+                            block: state.nowBlock,
+                            task: state.nowTask,
+                            progress: state.nowProgress,
+                            remainingMinutes: state.nowRemainingMinutes,
+                            isPaused: state.isPaused,
+                            onComplete: () => controller.completeCurrentTask(),
+                            onPause: () => controller.togglePause(),
+                          ),
                         ),
-                      ),
-                    if (state.errorMessage != null)
-                      _StatusCard(
-                        icon: Icons.sync_problem_rounded,
-                        message: state.errorMessage!,
-                        actionLabel: 'ลองอีกครั้ง',
-                        onAction: controller.load,
-                      ),
-                    TodayHeader(date: state.currentDate),
-                    const SizedBox(height: 16),
-                    _WeekStrip(selectedDate: state.currentDate),
-                    const SizedBox(height: 14),
-                    DoneItemsRow(items: state.doneItems),
-                    NowCard(
-                      block: state.nowBlock,
-                      task: state.nowTask,
-                      progress: state.nowProgress,
-                      remainingMinutes: state.nowRemainingMinutes,
-                      isPaused: state.isPaused,
-                      onComplete: () => controller.completeCurrentTask(),
-                      onPause: () => controller.togglePause(),
+                        const SizedBox(height: MossSpacing.x6),
+                        if (state.overflowTasks.isNotEmpty) ...[
+                          _OverflowCard(tasks: state.overflowTasks),
+                          const SizedBox(height: MossSpacing.x6),
+                        ],
+                        TimelineSection(
+                          items: state.visibleTimelineItems,
+                          hasMoreThan4: state.hasMoreThan4Upcoming,
+                          isShowingAll: state.showAllUpcoming,
+                          totalCount: state.upcomingBlocksCount,
+                          onToggleShowAll: () =>
+                              controller.toggleShowAllUpcoming(),
+                          onTapBlock: (item) =>
+                              _handleTapBlock(context, ref, item),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 24),
-                    if (state.overflowTasks.isNotEmpty) ...[
-                      _OverflowCard(tasks: state.overflowTasks),
-                      const SizedBox(height: 22),
-                    ],
-                    TimelineSection(
-                      items: state.visibleTimelineItems,
-                      hasMoreThan4: state.hasMoreThan4Upcoming,
-                      isShowingAll: state.showAllUpcoming,
-                      totalCount: state.upcomingBlocksCount,
-                      onToggleShowAll: () => controller.toggleShowAllUpcoming(),
-                      onTapBlock: (item) => _handleTapBlock(context, ref, item),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -268,13 +298,14 @@ class _OverflowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.mossTheme;
+    final components = context.mossComponents;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(MossSpacing.x4),
       decoration: BoxDecoration(
-        color: theme.urgentAccent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.urgentAccent.withValues(alpha: 0.28)),
+        color: components.urgentSurface,
+        borderRadius: BorderRadius.circular(MossRadii.lg),
+        border: Border.all(color: components.urgentBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,25 +313,26 @@ class _OverflowCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.schedule_rounded, color: theme.urgentAccent, size: 19),
-              const SizedBox(width: 8),
+              const SizedBox(width: MossSpacing.x2),
               Text(
                 'ยังต้องหาที่ให้อีก ${tasks.length} งาน',
-                style: TextStyle(
-                  color: theme.onBackground,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(context).textTheme.titleMedium,
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: MossSpacing.x2),
           Text(
             tasks.map((task) => task.title).join(' · '),
-            style: TextStyle(color: theme.textSecondary, fontSize: 13),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: theme.textSecondary),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: MossSpacing.x1),
           Text(
-            'ลองขยับเดดไลน์หรือลดเวลาของงาน โดยไม่มีงานไหนถูกทิ้งหาย',
-            style: TextStyle(color: theme.textMuted, fontSize: 12),
+            'ลองขยับกำหนดส่งหรือลดเวลาของงาน โดยไม่มีงานไหนถูกทิ้งหาย',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: theme.textMuted),
           ),
         ],
       ),
@@ -325,17 +357,20 @@ class _StatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.mossTheme;
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      margin: const EdgeInsets.only(bottom: MossSpacing.x4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: MossSpacing.x4,
+        vertical: MossSpacing.x2,
+      ),
       decoration: BoxDecoration(
-        color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(14),
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(MossRadii.md),
         border: Border.all(color: theme.borderSubtle),
       ),
       child: Row(
         children: [
           Icon(icon, color: theme.textSecondary),
-          const SizedBox(width: 10),
+          const SizedBox(width: MossSpacing.x2),
           Expanded(child: Text(message)),
           TextButton(onPressed: onAction, child: Text(actionLabel)),
         ],
@@ -358,7 +393,10 @@ class _WeekStrip extends StatelessWidget {
     const labels = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: MossSpacing.x1,
+        vertical: MossSpacing.x2,
+      ),
       decoration: BoxDecoration(
         color: theme.background,
         border: Border(
@@ -378,27 +416,24 @@ class _WeekStrip extends StatelessWidget {
               children: [
                 Text(
                   labels[index],
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: selected ? theme.primary : theme.textMuted,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: MossSpacing.x1),
                 AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 32,
-                  height: 32,
+                  duration: MossMotion.duration(context, MossMotion.standard),
+                  curve: MossMotion.stateCurve,
+                  width: MossSpacing.x8,
+                  height: MossSpacing.x8,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: selected ? theme.nowFill : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(MossRadii.md),
                   ),
                   child: Text(
                     '${day.day}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       color: selected ? theme.primary : theme.onBackground,
                     ),
                   ),

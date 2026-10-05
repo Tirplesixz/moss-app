@@ -121,7 +121,7 @@ class NotificationService {
   static const String channelId = 'moss_task_channel';
   static const String channelName = 'การแจ้งเตือนงาน Moss';
   static const String channelDescription =
-      'แจ้งเตือนเมื่อถึงเวลาเริ่มงานและใกล้เดดไลน์';
+      'แจ้งเตือนเมื่อถึงเวลาเริ่มงานและใกล้กำหนดส่ง';
 
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -285,9 +285,9 @@ class NotificationService {
           try {
             await _client.zonedSchedule(
               id: osId,
-              title: 'ใกล้ถึงเดดไลน์: $title',
+              title: 'ใกล้ถึงกำหนดส่ง: $title',
               body:
-                  'เหลืออีก $deadlineWarningMinutes นาที จะถึงเดดไลน์ ($timeText)',
+                  'เหลืออีก $deadlineWarningMinutes นาที จะถึงกำหนดส่ง ($timeText)',
               scheduledDate: tzDateTime,
               notificationDetails: details,
               androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,

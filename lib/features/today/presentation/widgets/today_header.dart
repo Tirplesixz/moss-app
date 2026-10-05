@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_primitives.dart';
 import '../../../../core/utils/thai_date_formatter.dart';
 
 /// Top header showing the small date and the section title "ตอนนี้"
@@ -16,24 +17,13 @@ class TodayHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'วันนี้',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: theme.onBackground,
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 3),
+        Text('วันนี้', style: Theme.of(context).textTheme.headlineMedium),
+        const SizedBox(height: MossSpacing.x1),
         Text(
           ThaiDateFormatter.formatFullDate(date),
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: theme.textMuted,
-            letterSpacing: 0.1,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: theme.textMuted),
         ),
       ],
     );

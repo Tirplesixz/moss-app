@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/scheduler/scheduler.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_primitives.dart';
 import '../../../../core/utils/thai_date_formatter.dart';
 
 class UrgentReplanSheet extends StatelessWidget {
@@ -33,14 +34,16 @@ class UrgentReplanSheet extends StatelessWidget {
         maxHeight: MediaQuery.sizeOf(context).height * 0.82,
       ),
       padding: EdgeInsets.fromLTRB(
-        20,
-        12,
-        20,
-        MediaQuery.paddingOf(context).bottom + 18,
+        MossSpacing.x5,
+        MossSpacing.x3,
+        MossSpacing.x5,
+        MediaQuery.paddingOf(context).bottom + MossSpacing.x5,
       ),
       decoration: BoxDecoration(
-        color: theme.background,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        color: theme.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(MossRadii.xl),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -56,34 +59,31 @@ class UrgentReplanSheet extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: MossSpacing.x5),
           Container(
-            width: 42,
-            height: 42,
+            width: MossSpacing.x12,
+            height: MossSpacing.x12,
             decoration: BoxDecoration(
               color: theme.nowFill,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(MossRadii.md),
             ),
             child: Icon(Icons.auto_awesome_rounded, color: theme.primary),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: MossSpacing.x4),
           Text(
             hasOverflow ? 'วันนี้แน่นกว่าที่คิด' : 'จัดตารางใหม่แล้ว',
-            style: TextStyle(
-              color: theme.onBackground,
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
+            style: Theme.of(context).textTheme.headlineMedium,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: MossSpacing.x2),
           Text(
             hasOverflow
-                ? 'มีบางงานที่ยังใส่ไม่ลงก่อนเดดไลน์ คุณเก็บไว้จัดการต่อได้'
+                ? 'มีบางงานที่ยังใส่ไม่ลงก่อนกำหนดส่ง คุณเก็บไว้จัดการต่อได้'
                 : 'งานด่วนเข้าแล้วก็ยังทัน นี่คือสิ่งที่จะเปลี่ยน',
-            style: TextStyle(color: theme.textSecondary, fontSize: 14),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: theme.textSecondary),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: MossSpacing.x5),
           Flexible(
             child: SingleChildScrollView(
               child: Column(
@@ -115,7 +115,9 @@ class UrgentReplanSheet extends StatelessWidget {
                   ),
                   if (diff.moved.isEmpty && !hasOverflow)
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: MossSpacing.x3,
+                      ),
                       child: Text(
                         'ไม่มีงานเดิมถูกขยับ',
                         style: TextStyle(color: theme.textMuted),
@@ -135,7 +137,7 @@ class UrgentReplanSheet extends StatelessWidget {
                   content: Text(
                     diff.moved.isEmpty
                         ? 'Moss เจอช่วงว่างที่ใส่งานด่วนได้ โดยไม่ต้องขยับงานเดิม'
-                        : 'Moss เรียงงานตามเดดไลน์ก่อน รักษาเวลาที่ล็อกไว้ แล้วขยับเฉพาะงานที่จำเป็น ${diff.moved.length} งาน',
+                        : 'Moss เรียงงานตามกำหนดส่งก่อน รักษาเวลาที่ล็อกไว้ แล้วขยับเฉพาะงานที่จำเป็น ${diff.moved.length} งาน',
                   ),
                   actions: [
                     TextButton(
@@ -145,14 +147,16 @@ class UrgentReplanSheet extends StatelessWidget {
                   ],
                 ),
               ),
-              icon: const Icon(Icons.help_outline_rounded, size: 18),
+              icon: const Icon(
+                Icons.help_outline_rounded,
+                size: MossIconSizes.md,
+              ),
               label: const Text('ทำไมจัดแบบนี้'),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: MossSpacing.x4),
           SizedBox(
             width: double.infinity,
-            height: 50,
             child: ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
               child: Text(
@@ -187,17 +191,17 @@ class _ChangeRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.mossTheme;
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: MossSpacing.x2),
+      padding: const EdgeInsets.all(MossSpacing.x4),
       decoration: BoxDecoration(
-        color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(14),
+        color: theme.surfaceMuted,
+        borderRadius: BorderRadius.circular(MossRadii.md),
         border: Border.all(color: theme.borderSubtle),
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 19),
-          const SizedBox(width: 12),
+          Icon(icon, color: color, size: MossIconSizes.md),
+          const SizedBox(width: MossSpacing.x3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,13 +210,15 @@ class _ChangeRow extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: theme.onBackground,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 3),
-                Text(detail, style: TextStyle(color: theme.textMuted)),
+                const SizedBox(height: MossSpacing.x1),
+                Text(
+                  detail,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: theme.textMuted),
+                ),
               ],
             ),
           ),

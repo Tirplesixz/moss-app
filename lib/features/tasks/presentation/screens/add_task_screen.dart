@@ -7,7 +7,7 @@ import '../../domain/block.dart';
 import '../../domain/task.dart';
 
 enum DeadlinePreset {
-  none('ไม่มีเดดไลน์'),
+  none('ไม่มีกำหนดส่ง'),
   thisEvening('เย็นนี้ (18:00)'),
   tomorrow('พรุ่งนี้ (18:00)'),
   custom('เลือกวันเอง');
@@ -347,7 +347,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 Text(
                   isEditing
                       ? 'แก้ไขข้อมูล'
-                      : (_isFixed ? 'เพิ่มนัดหมาย (ล็อคเวลา)' : 'เพิ่มงานใหม่'),
+                      : (_isFixed ? 'เพิ่มนัดหมาย (ล็อกเวลา)' : 'เพิ่มงานใหม่'),
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -396,9 +396,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: ChoiceChip(
-                    label: const Center(
-                      child: Text('นัดหมาย (เวลาล็อค/Fixed)'),
-                    ),
+                    label: const Center(child: Text('นัดหมาย (กำหนดเวลาเอง)')),
                     selected: _isFixed,
                     onSelected: (val) {
                       if (val) setState(() => _isFixed = true);
@@ -649,7 +647,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
               // Task Deadline Chips
               Text(
-                'เดดไลน์ (ถ้ามี)',
+                'กำหนดส่ง (ถ้ามี)',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -662,7 +660,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 runSpacing: 8,
                 children: [
                   ChoiceChip(
-                    label: const Text('ไม่มีเดดไลน์'),
+                    label: const Text('ไม่มีกำหนดส่ง'),
                     selected: _selectedDeadlinePreset == DeadlinePreset.none,
                     onSelected: (selected) {
                       if (selected) {
@@ -810,7 +808,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   isEditing
                       ? 'บันทึกการแก้ไข'
                       : (_isFixed
-                            ? 'บันทึกนัดหมาย (ล็อคเวลา)'
+                            ? 'บันทึกนัดหมาย (ล็อกเวลา)'
                             : 'เพิ่มงานและจัดตาราง'),
                   style: const TextStyle(
                     fontSize: 15,

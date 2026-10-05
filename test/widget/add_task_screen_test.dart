@@ -80,7 +80,7 @@ void main() {
     expect(find.text('เพิ่มงานใหม่'), findsOneWidget);
     expect(find.text('ชื่องาน'), findsOneWidget);
     expect(find.text('ใช้เวลาประมาณ'), findsOneWidget);
-    expect(find.text('เดดไลน์ (ถ้ามี)'), findsOneWidget);
+    expect(find.text('กำหนดส่ง (ถ้ามี)'), findsOneWidget);
 
     // Check preset duration chips
     expect(find.text('15 นาที'), findsOneWidget);
@@ -90,7 +90,7 @@ void main() {
     expect(find.text('กำหนดเอง'), findsOneWidget);
 
     // Check preset deadline chips
-    expect(find.text('ไม่มีเดดไลน์'), findsOneWidget);
+    expect(find.text('ไม่มีกำหนดส่ง'), findsOneWidget);
     expect(find.text('เย็นนี้ (18:00)'), findsOneWidget);
     expect(find.text('พรุ่งนี้ (18:00)'), findsOneWidget);
     expect(find.text('เลือกวันเอง...'), findsOneWidget);

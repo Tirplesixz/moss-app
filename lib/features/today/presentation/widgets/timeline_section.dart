@@ -122,14 +122,8 @@ class TimelineSection extends StatelessWidget {
           decoration: BoxDecoration(
             color: item.isFixed ? theme.nowFill : const Color(0xFFF8F9FA),
             borderRadius: BorderRadius.circular(8),
-            border: Border(
-              left: BorderSide(
-                color: item.isFixed ? theme.primary : theme.nowBorder,
-                width: 4,
-              ),
-              top: BorderSide(color: theme.borderSubtle),
-              right: BorderSide(color: theme.borderSubtle),
-              bottom: BorderSide(color: theme.borderSubtle),
+            border: Border.all(
+              color: item.isFixed ? theme.nowBorder : theme.borderSubtle,
             ),
           ),
           child: Row(

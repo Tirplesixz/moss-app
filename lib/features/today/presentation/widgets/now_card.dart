@@ -36,12 +36,7 @@ class NowCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFFF8F9FA),
           borderRadius: BorderRadius.circular(10),
-          border: Border(
-            left: BorderSide(color: theme.nowBorder, width: 4),
-            top: BorderSide(color: theme.borderSubtle),
-            right: BorderSide(color: theme.borderSubtle),
-            bottom: BorderSide(color: theme.borderSubtle),
-          ),
+          border: Border.all(color: theme.borderSubtle),
         ),
         child: Column(
           children: [
@@ -83,12 +78,7 @@ class NowCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.nowFill,
         borderRadius: BorderRadius.circular(10),
-        border: Border(
-          left: BorderSide(color: theme.primary, width: 4),
-          top: BorderSide(color: theme.nowBorder),
-          right: BorderSide(color: theme.nowBorder),
-          bottom: BorderSide(color: theme.nowBorder),
-        ),
+        border: Border.all(color: theme.nowBorder),
       ),
       padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
       child: Column(

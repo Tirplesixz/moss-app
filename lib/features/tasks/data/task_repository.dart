@@ -18,6 +18,7 @@ class TaskRepository {
           ? TimeUtils.parseUtc(row['deadline_at'] as String)
           : null,
       priority: row['priority'] as int? ?? 2,
+      projectName: row['project_name'] as String?,
       status: TaskStatus.fromString(row['status'] as String? ?? 'todo'),
       createdAt: TimeUtils.parseUtc(row['created_at'] as String),
       updatedAt: TimeUtils.parseUtc(row['updated_at'] as String),
@@ -36,6 +37,7 @@ class TaskRepository {
           ? TimeUtils.toUtcIsoString(task.deadlineAt!)
           : null,
       'priority': task.priority,
+      'project_name': task.projectName,
       'status': task.status.value,
       'created_at': TimeUtils.toUtcIsoString(task.createdAt),
       'updated_at': TimeUtils.toUtcIsoString(task.updatedAt),

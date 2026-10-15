@@ -17,6 +17,8 @@ class TodayState {
   final List<String> doneItems;
   final List<TodayTimelineItem> timelineItems;
   final List<Task> overflowTasks;
+  final List<Task> allTasks;
+  final List<Block> allBlocks;
   final UrgentScheduleResult? urgentProposal;
   final bool canUndo;
   final bool showAllUpcoming;
@@ -33,6 +35,8 @@ class TodayState {
     this.doneItems = const [],
     this.timelineItems = const [],
     this.overflowTasks = const [],
+    this.allTasks = const [],
+    this.allBlocks = const [],
     this.urgentProposal,
     this.canUndo = false,
     this.showAllUpcoming = false,
@@ -72,6 +76,8 @@ class TodayState {
     List<String>? doneItems,
     List<TodayTimelineItem>? timelineItems,
     List<Task>? overflowTasks,
+    List<Task>? allTasks,
+    List<Block>? allBlocks,
     UrgentScheduleResult? Function()? urgentProposal,
     bool? canUndo,
     bool? showAllUpcoming,
@@ -88,6 +94,8 @@ class TodayState {
       doneItems: doneItems ?? this.doneItems,
       timelineItems: timelineItems ?? this.timelineItems,
       overflowTasks: overflowTasks ?? this.overflowTasks,
+      allTasks: allTasks ?? this.allTasks,
+      allBlocks: allBlocks ?? this.allBlocks,
       urgentProposal: urgentProposal != null
           ? urgentProposal()
           : this.urgentProposal,

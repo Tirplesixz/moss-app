@@ -16,6 +16,7 @@ class AppDatabaseTables {
       duration_min INTEGER NOT NULL,
       deadline_at TEXT,
       priority INTEGER NOT NULL DEFAULT 2,
+      project_name TEXT,
       status TEXT NOT NULL DEFAULT 'todo',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -85,6 +86,7 @@ class AppDatabaseTables {
   static const List<String> createIndices = [
     'CREATE INDEX IF NOT EXISTS idx_tasks_status ON $tableTasks(status, deleted_at);',
     'CREATE INDEX IF NOT EXISTS idx_tasks_deadline ON $tableTasks(deadline_at);',
+    'CREATE INDEX IF NOT EXISTS idx_tasks_project ON $tableTasks(project_name, deleted_at);',
     'CREATE INDEX IF NOT EXISTS idx_blocks_time ON $tableBlocks(start_at, end_at, deleted_at);',
     'CREATE INDEX IF NOT EXISTS idx_blocks_task_id ON $tableBlocks(task_id);',
     'CREATE INDEX IF NOT EXISTS idx_notifs_fire_at ON $tableNotifs(fire_at, deleted_at);',

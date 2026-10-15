@@ -26,6 +26,7 @@ class Task {
   final int durationMin;
   final DateTime? deadlineAt; // UTC
   final int priority; // 1-3, default 2
+  final String? projectName;
   final TaskStatus status;
   final DateTime createdAt; // UTC
   final DateTime updatedAt; // UTC
@@ -37,6 +38,7 @@ class Task {
     required this.durationMin,
     this.deadlineAt,
     this.priority = 2,
+    this.projectName,
     this.status = TaskStatus.todo,
     required this.createdAt,
     required this.updatedAt,
@@ -52,6 +54,7 @@ class Task {
     int? durationMin,
     DateTime? Function()? deadlineAt,
     int? priority,
+    String? Function()? projectName,
     TaskStatus? status,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -63,6 +66,7 @@ class Task {
       durationMin: durationMin ?? this.durationMin,
       deadlineAt: deadlineAt != null ? deadlineAt() : this.deadlineAt,
       priority: priority ?? this.priority,
+      projectName: projectName != null ? projectName() : this.projectName,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -79,6 +83,7 @@ class Task {
           ? TimeUtils.toUtcIsoString(deadlineAt!)
           : null,
       'priority': priority,
+      'projectName': projectName,
       'status': status.value,
       'createdAt': TimeUtils.toUtcIsoString(createdAt),
       'updatedAt': TimeUtils.toUtcIsoString(updatedAt),
@@ -97,6 +102,7 @@ class Task {
           ? TimeUtils.parseUtc(map['deadlineAt'] as String)
           : null,
       priority: map['priority'] as int? ?? 2,
+      projectName: map['projectName'] as String?,
       status: TaskStatus.fromString(map['status'] as String? ?? 'todo'),
       createdAt: TimeUtils.parseUtc(map['createdAt'] as String),
       updatedAt: TimeUtils.parseUtc(map['updatedAt'] as String),
@@ -116,6 +122,7 @@ class Task {
           durationMin == other.durationMin &&
           deadlineAt == other.deadlineAt &&
           priority == other.priority &&
+          projectName == other.projectName &&
           status == other.status &&
           createdAt == other.createdAt &&
           updatedAt == other.updatedAt &&
@@ -128,6 +135,7 @@ class Task {
       durationMin.hashCode ^
       deadlineAt.hashCode ^
       priority.hashCode ^
+      projectName.hashCode ^
       status.hashCode ^
       createdAt.hashCode ^
       updatedAt.hashCode ^

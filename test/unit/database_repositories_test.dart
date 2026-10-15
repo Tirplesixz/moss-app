@@ -68,6 +68,7 @@ void main() {
         durationMin: 45,
         deadlineAt: now.add(const Duration(hours: 3)),
         priority: 2,
+        projectName: 'เว็บไซต์ลูกค้า',
         status: TaskStatus.todo,
         createdAt: now,
         updatedAt: now,
@@ -78,6 +79,7 @@ void main() {
       expect(fetched, isNotNull);
       expect(fetched!.title, 'ส่งรายงานสรุปยอด');
       expect(fetched.durationMin, 45);
+      expect(fetched.projectName, 'เว็บไซต์ลูกค้า');
       expect(fetched.isDeleted, isFalse);
 
       // Soft delete
@@ -141,6 +143,37 @@ void main() {
   });
 
   group('BlockRepository tests', () {
+    test('queries and soft deletes every active block for a task', () async {
+      final now = TimeUtils.nowUtc();
+      final taskId = uuid.v4();
+      final task = Task(
+        id: taskId,
+        title: 'งานหลายช่วง',
+        durationMin: 60,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await taskRepo.createTask(task);
+
+      for (var index = 0; index < 2; index++) {
+        await blockRepo.createBlock(
+          Block(
+            id: uuid.v4(),
+            kind: BlockKind.task,
+            taskId: taskId,
+            startAt: now.add(Duration(hours: index)),
+            endAt: now.add(Duration(hours: index, minutes: 30)),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+      }
+
+      expect(await blockRepo.getActiveBlocksForTask(taskId), hasLength(2));
+      await blockRepo.softDeleteBlocksForTask(taskId);
+      expect(await blockRepo.getActiveBlocksForTask(taskId), isEmpty);
+    });
+
     test('create, getBlocksInRange, and replaceMovableTaskBlocks', () async {
       final now = TimeUtils.nowUtc();
       final start = now;

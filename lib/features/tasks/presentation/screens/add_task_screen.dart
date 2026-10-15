@@ -29,13 +29,13 @@ class AddTaskScreen extends StatefulWidget {
     this.editBlock,
   });
 
-  static Future<dynamic> show(
+  static Future<Object?> show(
     BuildContext context, {
     String? initialTitle,
     Task? editTask,
     Block? editBlock,
   }) {
-    return showModalBottomSheet<dynamic>(
+    return showModalBottomSheet<Object?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -54,6 +54,7 @@ class AddTaskScreen extends StatefulWidget {
 class _AddTaskScreenState extends State<AddTaskScreen> {
   static const _uuid = Uuid();
   late final TextEditingController _titleController;
+  late final TextEditingController _projectController;
 
   bool _isFixed = false;
 
@@ -83,6 +84,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     if (widget.editBlock != null) {
       final b = widget.editBlock!;
       _titleController = TextEditingController(text: b.title ?? '');
+      _projectController = TextEditingController();
       _isFixed = b.isFixed;
       final startLocal = b.startAt.toLocal();
       final endLocal = b.endAt.toLocal();
@@ -97,6 +99,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     } else if (widget.editTask != null) {
       final t = widget.editTask!;
       _titleController = TextEditingController(text: t.title);
+      _projectController = TextEditingController(text: t.projectName ?? '');
       _isFixed = false;
       _selectedDurationMin = t.durationMin;
       _isCustomDuration = !_presetDurations.contains(t.durationMin);
@@ -106,12 +109,14 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       }
     } else {
       _titleController = TextEditingController(text: widget.initialTitle ?? '');
+      _projectController = TextEditingController();
     }
   }
 
   @override
   void dispose() {
     _titleController.dispose();
+    _projectController.dispose();
     super.dispose();
   }
 
@@ -297,6 +302,10 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         durationMin: _selectedDurationMin,
         deadlineAt: _computeDeadline(),
         priority: widget.editTask?.priority ?? 2,
+        projectName: () {
+          final value = _projectController.text.trim();
+          return value.isEmpty ? null : value;
+        }(),
         status: widget.editTask?.status ?? TaskStatus.todo,
         createdAt: widget.editTask?.createdAt ?? nowUtc,
         updatedAt: nowUtc,
@@ -443,6 +452,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               child: TextField(
                 controller: _titleController,
                 autofocus: true,
+                maxLength: 120,
                 style: TextStyle(
                   fontSize: 16,
                   color: theme.onBackground,
@@ -453,6 +463,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                       ? 'เช่น ประชุมฝ่ายการตลาด, นัดหมอ...'
                       : 'เช่น สรุปงานส่งลูกค้า, เขียนรายงาน...',
                   hintStyle: TextStyle(fontSize: 15, color: theme.textMuted),
+                  counterText: '',
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 14,
@@ -462,6 +473,29 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               ),
             ),
             const SizedBox(height: 20),
+
+            if (!_isFixed) ...[
+              Text(
+                'โปรเจกต์ (ถ้ามี)',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: theme.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _projectController,
+                textInputAction: TextInputAction.next,
+                maxLength: 60,
+                decoration: const InputDecoration(
+                  hintText: 'เช่น เว็บไซต์ใหม่, งานลูกค้า',
+                  counterText: '',
+                  prefixIcon: Icon(Icons.folder_outlined),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
 
             if (_isFixed) ...[
               // Fixed Block Date and Time Pickers

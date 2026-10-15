@@ -125,6 +125,8 @@ class TodayController extends StateNotifier<TodayState> {
         afterTime: nowBlock?.endAt ?? now,
       ),
       overflowTasks: overflow ?? calculatedOverflow,
+      allTasks: tasks,
+      allBlocks: activeBlocks,
     );
   }
 
@@ -283,6 +285,47 @@ class TodayController extends StateNotifier<TodayState> {
       await _taskRepository.setTaskStatus(block.taskId!, TaskStatus.done);
     }
     await _recomputeScheduleAndNotify();
+  }
+
+  Future<void> completeTask(Task task) async {
+    final blocks = await _blockRepository.getActiveBlocksForTask(task.id);
+    for (final block in blocks) {
+      await _notificationService.cancelNotificationsForBlock(block.id);
+    }
+    await _blockRepository.softDeleteBlocksForTask(task.id);
+    await _taskRepository.setTaskStatus(task.id, TaskStatus.done);
+    await _eventLogRepository.track('task_completed');
+    await _recomputeScheduleAndNotify();
+  }
+
+  Future<void> deleteTask(Task task) async {
+    final blocks = await _blockRepository.getActiveBlocksForTask(task.id);
+    for (final block in blocks) {
+      await _notificationService.cancelNotificationsForBlock(block.id);
+    }
+    await _blockRepository.softDeleteBlocksForTask(task.id);
+    await _taskRepository.softDeleteTask(task.id);
+    await _eventLogRepository.track('task_deleted');
+    await _recomputeScheduleAndNotify();
+  }
+
+  Future<void> updateTask(Task task) async {
+    await _taskRepository.updateTask(task);
+    await _eventLogRepository.track('task_updated');
+    await _recomputeScheduleAndNotify();
+  }
+
+  Future<void> reschedule() async {
+    state = state.copyWith(isLoading: true, errorMessage: () => null);
+    try {
+      await _recomputeScheduleAndNotify();
+      await _eventLogRepository.track('schedule_refreshed');
+    } catch (_) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: () => 'จัดตารางไม่สำเร็จ กรุณาลองอีกครั้ง',
+      );
+    }
   }
 
   Future<void> toggleLockBlock(Block block) async {

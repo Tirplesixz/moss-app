@@ -78,6 +78,28 @@ class BlockRepository {
     );
   }
 
+  Future<List<Block>> getActiveBlocksForTask(String taskId) async {
+    final db = await _database.database;
+    final results = await db.query(
+      AppDatabaseTables.tableBlocks,
+      where: 'task_id = ? AND deleted_at IS NULL',
+      whereArgs: [taskId],
+      orderBy: 'start_at ASC',
+    );
+    return results.map(_fromRow).toList();
+  }
+
+  Future<void> softDeleteBlocksForTask(String taskId) async {
+    final db = await _database.database;
+    final now = TimeUtils.toUtcIsoString(TimeUtils.nowUtc());
+    await db.update(
+      AppDatabaseTables.tableBlocks,
+      {'deleted_at': now, 'updated_at': now},
+      where: 'task_id = ? AND deleted_at IS NULL',
+      whereArgs: [taskId],
+    );
+  }
+
   Future<Block?> getBlockById(String blockId) async {
     final db = await _database.database;
     final results = await db.query(

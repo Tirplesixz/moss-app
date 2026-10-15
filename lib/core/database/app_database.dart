@@ -8,7 +8,7 @@ import '../../features/settings/domain/app_settings.dart';
 /// Handles connection lifecycle, schema creation, migrations, and default seeding.
 class AppDatabase {
   static const String _databaseName = 'moss.db';
-  static const int _databaseVersion = 2;
+  static const int _databaseVersion = 3;
 
   Database? _db;
 
@@ -82,6 +82,16 @@ class AppDatabase {
       await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_events_time '
         'ON ${AppDatabaseTables.tableEvents}(occurred_at)',
+      );
+    }
+    if (oldVersion < 3) {
+      await db.execute(
+        'ALTER TABLE ${AppDatabaseTables.tableTasks} '
+        'ADD COLUMN project_name TEXT',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_tasks_project '
+        'ON ${AppDatabaseTables.tableTasks}(project_name, deleted_at)',
       );
     }
     debugPrint('Upgraded database from $oldVersion to $newVersion');

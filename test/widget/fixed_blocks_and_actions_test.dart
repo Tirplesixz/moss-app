@@ -83,6 +83,8 @@ void main() {
     await tester.tap(find.text('นัดคุยทีม'));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ลบงาน'));
     await settleDatabaseIo(tester);
     expect(find.text('นัดคุยทีม'), findsNothing);
     await disposeTestDatabase(tester, database);

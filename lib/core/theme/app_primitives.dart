@@ -18,6 +18,17 @@ class MossPrimitives {
   static const neutral900 = Color(0xFF202124);
   static const neutral950 = Color(0xFF151716);
 
+  // Moss 2026 accent: focused, calm violet for planning actions.
+  static const violet50 = Color(0xFFF7F5FF);
+  static const violet100 = Color(0xFFEFEAFF);
+  static const violet200 = Color(0xFFDED3FF);
+  static const violet300 = Color(0xFFC4B5FD);
+  static const violet400 = Color(0xFF9B78FF);
+  static const violet500 = Color(0xFF7C4DFF);
+  static const violet600 = Color(0xFF6D35E8);
+  static const violet700 = Color(0xFF5725C7);
+  static const violet900 = Color(0xFF2C1F4F);
+
   static const moss50 = Color(0xFFF0F7F3);
   static const moss100 = Color(0xFFDDECE3);
   static const moss300 = Color(0xFF9FC6B0);
@@ -36,6 +47,14 @@ class MossPrimitives {
   static const red300 = Color(0xFFFF7A7A);
   static const blue500 = Color(0xFF4676C8);
   static const blue300 = Color(0xFF8DB3F2);
+
+  static const mint50 = Color(0xFFECFBF7);
+  static const mint100 = Color(0xFFD5F6EC);
+  static const mint500 = Color(0xFF20B88A);
+  static const mint700 = Color(0xFF14785E);
+  static const sky50 = Color(0xFFEEF6FF);
+  static const sky100 = Color(0xFFDDEEFF);
+  static const sky600 = Color(0xFF3478E5);
 }
 
 /// 4dp spacing scale.
@@ -58,8 +77,8 @@ class MossRadii {
   MossRadii._();
 
   static const double sm = 6;
-  static const double md = 10;
-  static const double lg = 16;
+  static const double md = 12;
+  static const double lg = 18;
   static const double xl = 24;
   static const double full = 999;
 }

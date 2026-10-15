@@ -44,7 +44,7 @@ class MossThemeExtension extends ThemeExtension<MossThemeExtension> {
   static const light = MossThemeExtension(
     background: MossPrimitives.white,
     onBackground: MossPrimitives.neutral900,
-    primary: MossPrimitives.moss600,
+    primary: MossPrimitives.violet600,
     onPrimary: MossPrimitives.white,
     surface: MossPrimitives.white,
     surfaceMuted: MossPrimitives.neutral50,
@@ -52,18 +52,18 @@ class MossThemeExtension extends ThemeExtension<MossThemeExtension> {
     textSecondary: MossPrimitives.neutral600,
     borderSubtle: MossPrimitives.neutral200,
     divider: MossPrimitives.neutral100,
-    success: MossPrimitives.moss600,
+    success: MossPrimitives.mint700,
     warning: MossPrimitives.amber500,
     error: MossPrimitives.red500,
     info: MossPrimitives.blue500,
-    focusRing: MossPrimitives.moss600,
+    focusRing: MossPrimitives.violet600,
     urgentAccent: MossPrimitives.orange500,
   );
 
   static const dark = MossThemeExtension(
     background: MossPrimitives.neutral950,
     onBackground: MossPrimitives.neutral50,
-    primary: MossPrimitives.moss300,
+    primary: MossPrimitives.violet300,
     onPrimary: MossPrimitives.neutral950,
     surface: MossPrimitives.neutral900,
     surfaceMuted: MossPrimitives.neutral800,
@@ -71,11 +71,11 @@ class MossThemeExtension extends ThemeExtension<MossThemeExtension> {
     textSecondary: MossPrimitives.neutral300,
     borderSubtle: MossPrimitives.neutral700,
     divider: MossPrimitives.neutral800,
-    success: MossPrimitives.moss300,
+    success: MossPrimitives.mint500,
     warning: MossPrimitives.amber300,
     error: MossPrimitives.red300,
     info: MossPrimitives.blue300,
-    focusRing: MossPrimitives.moss300,
+    focusRing: MossPrimitives.violet300,
     urgentAccent: MossPrimitives.orange300,
   );
 
@@ -165,6 +165,13 @@ class MossComponentTheme extends ThemeExtension<MossComponentTheme> {
   final Color inputFocusBorder;
   final Color urgentSurface;
   final Color urgentBorder;
+  final Color navigationSelectedSurface;
+  final Color customerSurface;
+  final Color customerAccent;
+  final Color internalSurface;
+  final Color internalAccent;
+  final Color projectSurface;
+  final Color projectAccent;
 
   const MossComponentTheme({
     required this.taskSurface,
@@ -178,34 +185,55 @@ class MossComponentTheme extends ThemeExtension<MossComponentTheme> {
     required this.inputFocusBorder,
     required this.urgentSurface,
     required this.urgentBorder,
+    required this.navigationSelectedSurface,
+    required this.customerSurface,
+    required this.customerAccent,
+    required this.internalSurface,
+    required this.internalAccent,
+    required this.projectSurface,
+    required this.projectAccent,
   });
 
   static const light = MossComponentTheme(
     taskSurface: MossPrimitives.neutral50,
     taskBorder: MossPrimitives.neutral450,
-    fixedTaskSurface: MossPrimitives.moss50,
-    fixedTaskBorder: MossPrimitives.moss600,
-    activeTaskSurface: MossPrimitives.moss50,
-    activeTaskBorder: MossPrimitives.moss600,
+    fixedTaskSurface: MossPrimitives.mint50,
+    fixedTaskBorder: MossPrimitives.mint500,
+    activeTaskSurface: MossPrimitives.violet50,
+    activeTaskBorder: MossPrimitives.violet600,
     inputSurface: MossPrimitives.neutral50,
     inputBorder: MossPrimitives.neutral450,
-    inputFocusBorder: MossPrimitives.moss600,
+    inputFocusBorder: MossPrimitives.violet600,
     urgentSurface: MossPrimitives.orange100,
     urgentBorder: MossPrimitives.orange500,
+    navigationSelectedSurface: MossPrimitives.violet100,
+    customerSurface: MossPrimitives.sky50,
+    customerAccent: MossPrimitives.sky600,
+    internalSurface: MossPrimitives.mint50,
+    internalAccent: MossPrimitives.mint700,
+    projectSurface: MossPrimitives.violet50,
+    projectAccent: MossPrimitives.violet600,
   );
 
   static const dark = MossComponentTheme(
     taskSurface: MossPrimitives.neutral900,
     taskBorder: MossPrimitives.neutral700,
     fixedTaskSurface: MossPrimitives.moss800,
-    fixedTaskBorder: MossPrimitives.moss500,
-    activeTaskSurface: MossPrimitives.moss800,
-    activeTaskBorder: MossPrimitives.moss300,
+    fixedTaskBorder: MossPrimitives.mint500,
+    activeTaskSurface: MossPrimitives.violet900,
+    activeTaskBorder: MossPrimitives.violet300,
     inputSurface: MossPrimitives.neutral900,
     inputBorder: MossPrimitives.neutral700,
-    inputFocusBorder: MossPrimitives.moss300,
+    inputFocusBorder: MossPrimitives.violet300,
     urgentSurface: MossPrimitives.orange900,
     urgentBorder: MossPrimitives.orange300,
+    navigationSelectedSurface: MossPrimitives.violet900,
+    customerSurface: MossPrimitives.neutral800,
+    customerAccent: MossPrimitives.blue300,
+    internalSurface: MossPrimitives.moss800,
+    internalAccent: MossPrimitives.mint500,
+    projectSurface: MossPrimitives.violet900,
+    projectAccent: MossPrimitives.violet300,
   );
 
   static MossComponentTheme forBrightness(Brightness brightness) =>
@@ -224,6 +252,13 @@ class MossComponentTheme extends ThemeExtension<MossComponentTheme> {
     Color? inputFocusBorder,
     Color? urgentSurface,
     Color? urgentBorder,
+    Color? navigationSelectedSurface,
+    Color? customerSurface,
+    Color? customerAccent,
+    Color? internalSurface,
+    Color? internalAccent,
+    Color? projectSurface,
+    Color? projectAccent,
   }) {
     return MossComponentTheme(
       taskSurface: taskSurface ?? this.taskSurface,
@@ -237,6 +272,14 @@ class MossComponentTheme extends ThemeExtension<MossComponentTheme> {
       inputFocusBorder: inputFocusBorder ?? this.inputFocusBorder,
       urgentSurface: urgentSurface ?? this.urgentSurface,
       urgentBorder: urgentBorder ?? this.urgentBorder,
+      navigationSelectedSurface:
+          navigationSelectedSurface ?? this.navigationSelectedSurface,
+      customerSurface: customerSurface ?? this.customerSurface,
+      customerAccent: customerAccent ?? this.customerAccent,
+      internalSurface: internalSurface ?? this.internalSurface,
+      internalAccent: internalAccent ?? this.internalAccent,
+      projectSurface: projectSurface ?? this.projectSurface,
+      projectAccent: projectAccent ?? this.projectAccent,
     );
   }
 
@@ -271,6 +314,17 @@ class MossComponentTheme extends ThemeExtension<MossComponentTheme> {
       )!,
       urgentSurface: Color.lerp(urgentSurface, other.urgentSurface, t)!,
       urgentBorder: Color.lerp(urgentBorder, other.urgentBorder, t)!,
+      navigationSelectedSurface: Color.lerp(
+        navigationSelectedSurface,
+        other.navigationSelectedSurface,
+        t,
+      )!,
+      customerSurface: Color.lerp(customerSurface, other.customerSurface, t)!,
+      customerAccent: Color.lerp(customerAccent, other.customerAccent, t)!,
+      internalSurface: Color.lerp(internalSurface, other.internalSurface, t)!,
+      internalAccent: Color.lerp(internalAccent, other.internalAccent, t)!,
+      projectSurface: Color.lerp(projectSurface, other.projectSurface, t)!,
+      projectAccent: Color.lerp(projectAccent, other.projectAccent, t)!,
     );
   }
 }
@@ -309,10 +363,12 @@ class AppTheme {
       brightness: brightness,
       primary: semantic.primary,
       onPrimary: semantic.onPrimary,
-      secondary: semantic.urgentAccent,
-      onSecondary: brightness == Brightness.dark
-          ? MossPrimitives.neutral950
-          : MossPrimitives.white,
+      primaryContainer: components.navigationSelectedSurface,
+      onPrimaryContainer: semantic.primary,
+      secondary: semantic.primary,
+      onSecondary: semantic.onPrimary,
+      secondaryContainer: components.navigationSelectedSurface,
+      onSecondaryContainer: semantic.primary,
       error: semantic.error,
       onError: brightness == Brightness.dark
           ? MossPrimitives.neutral950
@@ -467,6 +523,69 @@ class AppTheme {
         style: IconButton.styleFrom(
           minimumSize: const Size(48, 48),
           foregroundColor: semantic.onBackground,
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        height: 72,
+        elevation: 0,
+        backgroundColor: semantic.surface,
+        indicatorColor: components.navigationSelectedSurface,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          return IconThemeData(
+            size: MossIconSizes.lg,
+            color: states.contains(WidgetState.selected)
+                ? semantic.primary
+                : semantic.textMuted,
+          );
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          return textTheme.labelMedium?.copyWith(
+            color: states.contains(WidgetState.selected)
+                ? semantic.primary
+                : semantic.textMuted,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w700
+                : FontWeight.w500,
+          );
+        }),
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: semantic.surface,
+        indicatorColor: components.navigationSelectedSurface,
+        selectedIconTheme: IconThemeData(color: semantic.primary),
+        unselectedIconTheme: IconThemeData(color: semantic.textMuted),
+        selectedLabelTextStyle: textTheme.labelMedium?.copyWith(
+          color: semantic.primary,
+          fontWeight: FontWeight.w700,
+        ),
+        unselectedLabelTextStyle: textTheme.labelMedium,
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(48, 40)),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: MossSpacing.x4),
+          ),
+          elevation: const WidgetStatePropertyAll(0),
+          side: WidgetStatePropertyAll(
+            BorderSide(color: semantic.borderSubtle),
+          ),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            return states.contains(WidgetState.selected)
+                ? components.navigationSelectedSurface
+                : semantic.surfaceMuted;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            return states.contains(WidgetState.selected)
+                ? semantic.primary
+                : semantic.textSecondary;
+          }),
+          textStyle: WidgetStatePropertyAll(textTheme.labelLarge),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(MossRadii.md),
+            ),
+          ),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(

@@ -63,7 +63,7 @@ void main() {
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () async {
-                createdTask = await AddTaskScreen.show(context);
+                createdTask = await AddTaskScreen.show(context) as Task?;
               },
               child: const Text('Open Modal'),
             ),
@@ -147,7 +147,7 @@ void main() {
       await settleDatabaseIo(tester);
 
       // Tap AppBar action "เพิ่มงานแบบละเอียด"
-      await tester.tap(find.byIcon(Icons.note_add_outlined));
+      await tester.tap(find.byType(FloatingActionButton));
       await tester.pumpAndSettle();
 
       expect(find.text('เพิ่มงานใหม่'), findsOneWidget);

@@ -81,12 +81,12 @@ void main() {
       // 1. On first launch, permission should NOT be requested yet (PLAN.md Section 9)
       expect(mockClient.requestPermissionCalled, isFalse);
 
-      // 2. Add first task using quick add bar
+      // 2. Add first task from the inbox composer
+      await tester.tap(find.text('งานเข้า'));
+      await tester.pumpAndSettle();
       final inputField = find.byType(TextField);
       await tester.enterText(inputField, 'งานชิ้นแรก');
-      await tester.tap(find.byIcon(Icons.add_rounded));
-      await settleDatabaseIo(tester);
-      await tester.tap(find.text('ตกลง ใช้ตารางนี้'));
+      await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
       await settleDatabaseIo(tester);
 
       // 3. Permission MUST have been requested after first task was added!

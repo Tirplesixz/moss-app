@@ -44,7 +44,7 @@ class FakeNotificationClient implements INotificationClient {
 void main() {
   setUpAll(tz.initializeTimeZones);
 
-  testWidgets('HomeScreen renders real empty state and quick add', (
+  testWidgets('HomeScreen renders adaptive navigation and empty agenda', (
     tester,
   ) async {
     final database = await createTestDatabase();
@@ -65,15 +65,14 @@ void main() {
     );
     await settleDatabaseIo(tester);
 
-    expect(find.text('Moss'), findsOneWidget);
-    expect(find.byIcon(Icons.add_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.spa_outlined), findsOneWidget);
+    expect(find.text('วันนี้'), findsWidgets);
+    expect(find.text('งานเข้า'), findsOneWidget);
+    expect(find.text('โปรเจกต์'), findsOneWidget);
+    expect(find.text('วันนี้ยังว่าง'), findsOneWidget);
     await disposeTestDatabase(tester, database);
   });
 
-  testWidgets('quick add previews changes and persists after confirmation', (
-    tester,
-  ) async {
+  testWidgets('inbox quick add persists and renders the task', (tester) async {
     final database = await createTestDatabase();
     final notificationService = NotificationService(
       client: FakeNotificationClient(),
@@ -92,17 +91,56 @@ void main() {
     );
     await settleDatabaseIo(tester);
 
+    await tester.tap(find.text('งานเข้า'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'ส่งสรุปให้ลูกค้า');
-    await tester.tap(find.byIcon(Icons.add_rounded));
-    await settleDatabaseIo(tester);
-
-    expect(find.text('จัดตารางใหม่แล้ว'), findsOneWidget);
-    expect(find.text('ส่งสรุปให้ลูกค้า'), findsOneWidget);
-    await tester.tap(find.text('ตกลง ใช้ตารางนี้'));
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
     await settleDatabaseIo(tester);
 
     expect(find.text('ส่งสรุปให้ลูกค้า'), findsOneWidget);
-    expect(find.text('เลิกทำ'), findsOneWidget);
+    await disposeTestDatabase(tester, database);
+  });
+
+  testWidgets('compact layout handles large text and a worst-case task title', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final database = await createTestDatabase();
+    final notificationService = NotificationService(
+      client: FakeNotificationClient(),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          notificationServiceProvider.overrideWithValue(notificationService),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(1.5)),
+            child: child!,
+          ),
+          home: const HomeScreen(),
+        ),
+      ),
+    );
+    await settleDatabaseIo(tester);
+
+    await tester.tap(find.byIcon(Icons.format_list_bulleted_rounded));
+    await tester.pumpAndSettle();
+    const longTitle =
+        'Client follow-up — ทีมกรุงเทพฯ 🚀 '
+        'averyveryveryveryveryverylongunbreakableidentifier@example.com';
+    await tester.enterText(find.byType(TextField), longTitle);
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await settleDatabaseIo(tester);
+
+    expect(find.text(longTitle), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await disposeTestDatabase(tester, database);
   });
 }

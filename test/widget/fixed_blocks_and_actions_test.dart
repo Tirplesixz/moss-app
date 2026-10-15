@@ -62,7 +62,7 @@ void main() {
     );
     await settleDatabaseIo(tester);
 
-    await tester.tap(find.byIcon(Icons.note_add_outlined));
+    await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     expect(find.byType(AddTaskScreen), findsOneWidget);
 

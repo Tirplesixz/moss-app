@@ -81,6 +81,101 @@ class _CalendarTimelineScreenState
     }
   }
 
+  void _openCalendarFilterSheet(BuildContext context) {
+    MossHaptics.light();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final vm = ref.watch(deviceCalendarViewModelProvider);
+            final available = vm.availableCalendarNames.toList()..sort();
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                14,
+                20,
+                MediaQuery.of(context).padding.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'เลือกปฏิทินที่จะแสดง',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (vm.deselectedCalendarNames.isNotEmpty)
+                        TextButton(
+                          onPressed: () {
+                            vm.showAllCalendars();
+                          },
+                          child: const Text('แสดงทั้งหมด'),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (available.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          'ไม่พบปฏิทินภายนอก หรือยังไม่ได้เชื่อมต่อ',
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    ...available.map((name) {
+                      final isVisible = vm.isCalendarVisible(name);
+                      return SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        secondary: const Icon(Icons.calendar_today_rounded, size: 20),
+                        title: Text(name),
+                        value: isVisible,
+                        onChanged: (_) {
+                          MossHaptics.selection();
+                          vm.toggleCalendarVisibility(name);
+                        },
+                      );
+                    }),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _toggleTaskComplete(Task task) async {
     MossHaptics.success();
     if (task.isCompleted) {
@@ -394,45 +489,70 @@ class _CalendarTimelineScreenState
                     ),
                   ),
 
-                  // View mode switcher
-                  Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.outlineVariant,
+                  // View mode switcher & Calendar Filter
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _ViewModeIcon(
+                              icon: Icons.notes_rounded,
+                              isSelected: _viewMode == 0,
+                              onTap: () {
+                                MossHaptics.selection();
+                                setState(() => _viewMode = 0);
+                              },
+                            ),
+                            _ViewModeIcon(
+                              icon: Icons.format_list_bulleted_rounded,
+                              isSelected: _viewMode == 1,
+                              onTap: () {
+                                MossHaptics.selection();
+                                setState(() => _viewMode = 1);
+                              },
+                            ),
+                            _ViewModeIcon(
+                              icon: Icons.view_agenda_outlined,
+                              isSelected: _viewMode == 2,
+                              onTap: () {
+                                MossHaptics.selection();
+                                setState(() => _viewMode = 2);
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _ViewModeIcon(
-                          icon: Icons.notes_rounded,
-                          isSelected: _viewMode == 0,
-                          onTap: () {
-                            MossHaptics.selection();
-                            setState(() => _viewMode = 0);
-                          },
+                      const SizedBox(width: 4),
+                      IconButton(
+                        tooltip: 'เลือกปฏิทินที่จะแสดง',
+                        icon: Badge(
+                          isLabelVisible:
+                              deviceCalendar.deselectedCalendarNames.isNotEmpty,
+                          child: Icon(
+                            Icons.tune_rounded,
+                            size: 20,
+                            color: deviceCalendar
+                                    .deselectedCalendarNames.isNotEmpty
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.7),
+                          ),
                         ),
-                        _ViewModeIcon(
-                          icon: Icons.format_list_bulleted_rounded,
-                          isSelected: _viewMode == 1,
-                          onTap: () {
-                            MossHaptics.selection();
-                            setState(() => _viewMode = 1);
-                          },
-                        ),
-                        _ViewModeIcon(
-                          icon: Icons.view_agenda_outlined,
-                          isSelected: _viewMode == 2,
-                          onTap: () {
-                            MossHaptics.selection();
-                            setState(() => _viewMode = 2);
-                          },
-                        ),
-                      ],
-                    ),
+                        onPressed: () => _openCalendarFilterSheet(context),
+                      ),
+                    ],
                   ),
                 ],
               ),

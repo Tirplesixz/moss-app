@@ -82,6 +82,9 @@ class LockScreenCanvas extends StatelessWidget {
                   ],
                   for (final module in config.moduleOrder)
                     ..._buildModule(module, date, scale),
+                  if (!config.moduleOrder.contains('year_progress') &&
+                      config.showYearProgress)
+                    ..._buildModule('year_progress', date, scale),
                   const Spacer(),
                   Text(
                     'MOSS',
@@ -179,29 +182,142 @@ class LockScreenCanvas extends StatelessWidget {
           SizedBox(height: 12 * scale),
         ];
       case 'note' when config.showPinnedNote && config.pinnedNoteText.isNotEmpty:
+        Widget noteCard = _GlassPanel(
+          scale: scale,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '📌 บันทึกปักหมุด',
+                    style: TextStyle(
+                      fontSize: 13 * scale,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  if (config.paperStyle != 'plain')
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 6 * scale, vertical: 2 * scale),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4 * scale),
+                      ),
+                      child: Text(
+                        config.paperStyle == 'tape'
+                            ? 'TAPE'
+                            : (config.paperStyle == 'lined' ? 'LINED' : 'GRID'),
+                        style: TextStyle(
+                          fontSize: 8 * scale,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              SizedBox(height: 6 * scale),
+              Text(
+                config.pinnedNoteText,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12 * scale,
+                  color: Colors.white.withValues(alpha: 0.95),
+                  height: config.paperStyle == 'lined' ? 1.45 : 1.25,
+                ),
+              ),
+            ],
+          ),
+        );
+
+        if (config.paperStyle == 'tape') {
+          noteCard = Stack(
+            clipBehavior: Clip.none,
+            children: [
+              noteCard,
+              Positioned(
+                top: -5 * scale,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    width: 54 * scale,
+                    height: 12 * scale,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.38),
+                      borderRadius: BorderRadius.circular(2 * scale),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return [
+          noteCard,
+          SizedBox(height: 12 * scale),
+        ];
+      case 'year_progress' when config.showYearProgress:
+        final startOfYear = DateTime(date.year, 1, 1);
+        final dayOfYear = date.difference(startOfYear).inDays + 1;
+        final isLeapYear = (date.year % 4 == 0 && date.year % 100 != 0) || (date.year % 400 == 0);
+        final totalDays = isLeapYear ? 366 : 365;
+        final daysLeft = totalDays - dayOfYear;
+        final percent = (dayOfYear / totalDays * 100).clamp(0, 100);
         return [
           _GlassPanel(
             scale: scale,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '📌 บันทึกปักหมุด',
-                  style: TextStyle(
-                    fontSize: 13 * scale,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '🌱 365 วัน · ปี ${date.year + 543}',
+                      style: TextStyle(
+                        fontSize: 13 * scale,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '${percent.toStringAsFixed(1)}%',
+                      style: TextStyle(
+                        fontSize: 13 * scale,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF68D391),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 6 * scale),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    value: (dayOfYear / totalDays).clamp(0.0, 1.0),
+                    minHeight: 5 * scale,
+                    backgroundColor: Colors.white24,
+                    valueColor: const AlwaysStoppedAnimation(Color(0xFF68D391)),
                   ),
                 ),
-                SizedBox(height: 4 * scale),
-                Text(
-                  config.pinnedNoteText,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12 * scale,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
+                SizedBox(height: 5 * scale),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'ผ่านไป $dayOfYear วัน',
+                      style: TextStyle(fontSize: 10 * scale, color: Colors.white70),
+                    ),
+                    Text(
+                      'เหลืออีก $daysLeft วัน',
+                      style: TextStyle(fontSize: 10 * scale, color: Colors.white70),
+                    ),
+                  ],
                 ),
               ],
             ),

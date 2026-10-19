@@ -104,6 +104,10 @@ class LockScreenViewModel extends ChangeNotifier {
       _update(_draft.copyWith(pinnedNoteText: value));
   void setDimPastEvents(bool value) =>
       _update(_draft.copyWith(dimPastEvents: value));
+  void setShowYearProgress(bool value) =>
+      _update(_draft.copyWith(showYearProgress: value));
+  void setPaperStyle(String value) =>
+      _update(_draft.copyWith(paperStyle: value));
   void setColors(int start, int end) => _update(
     _draft.copyWith(
       templateId: 'custom',

@@ -8,7 +8,7 @@ import '../../features/settings/domain/app_settings.dart';
 /// Handles connection lifecycle, schema creation, migrations, and default seeding.
 class AppDatabase {
   static const String _databaseName = 'moss.db';
-  static const int _databaseVersion = 13;
+  static const int _databaseVersion = 14;
 
   Database? _db;
 
@@ -46,6 +46,7 @@ class AppDatabase {
     await db.execute(AppDatabaseTables.createEventsTable);
     await db.execute(AppDatabaseTables.createLockScreenConfigsTable);
     await db.execute(AppDatabaseTables.createNotesTable);
+    await db.execute(AppDatabaseTables.createBoardsTable);
 
     for (final indexSql in AppDatabaseTables.createIndices) {
       await db.execute(indexSql);
@@ -190,6 +191,21 @@ class AppDatabase {
       await db.execute(
         'ALTER TABLE ${AppDatabaseTables.tableLockScreenConfigs} '
         'ADD COLUMN dim_past_events INTEGER NOT NULL DEFAULT 0',
+      );
+    }
+    if (oldVersion < 14) {
+      await db.execute(AppDatabaseTables.createBoardsTable);
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_boards_created '
+        'ON ${AppDatabaseTables.tableBoards}(is_default DESC, created_at ASC, deleted_at)',
+      );
+      await db.execute(
+        'ALTER TABLE ${AppDatabaseTables.tableLockScreenConfigs} '
+        'ADD COLUMN show_year_progress INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE ${AppDatabaseTables.tableLockScreenConfigs} '
+        "ADD COLUMN paper_style TEXT NOT NULL DEFAULT 'plain'",
       );
     }
     debugPrint('Upgraded database from $oldVersion to $newVersion');

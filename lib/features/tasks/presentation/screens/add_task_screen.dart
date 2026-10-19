@@ -18,6 +18,7 @@ class AddTaskScreen extends StatefulWidget {
   final Block? editBlock;
   final int? initialQuadrant;
   final DateTime? initialDate;
+  final String? initialProject;
 
   const AddTaskScreen({
     super.key,
@@ -26,6 +27,7 @@ class AddTaskScreen extends StatefulWidget {
     this.editBlock,
     this.initialQuadrant,
     this.initialDate,
+    this.initialProject,
   });
 
   static Future<Object?> show(
@@ -35,6 +37,7 @@ class AddTaskScreen extends StatefulWidget {
     Block? editBlock,
     int? initialQuadrant,
     DateTime? initialDate,
+    String? initialProject,
   }) {
     return showModalBottomSheet<Object?>(
       context: context,
@@ -50,6 +53,7 @@ class AddTaskScreen extends StatefulWidget {
         editBlock: editBlock,
         initialQuadrant: initialQuadrant,
         initialDate: initialDate,
+        initialProject: initialProject,
       ),
     );
   }
@@ -233,6 +237,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
             durationMin: 30,
             quadrant: _selectedQuadrant,
             priority: MatrixQuadrant.fromId(_selectedQuadrant).priority,
+            projectName: widget.initialProject,
             deadlineAt: deadlineUtc,
             repeatRule: _repeatRule?.storageValue,
             createdAt: now,

@@ -12,7 +12,15 @@ class LockScreenConfig {
     this.showCalendar = false,
     this.autoUpdate = false,
     this.taskLimit = 4,
-    this.moduleOrder = const ['clock', 'countdown', 'progress', 'tasks', 'calendar', 'note'],
+    this.moduleOrder = const [
+      'clock',
+      'countdown',
+      'progress',
+      'year_progress',
+      'tasks',
+      'calendar',
+      'note',
+    ],
     this.verticalOffset = 0.0,
     this.showCountdown = false,
     this.countdownTitle = 'วันสำคัญ',
@@ -20,6 +28,8 @@ class LockScreenConfig {
     this.showPinnedNote = false,
     this.pinnedNoteText = '',
     this.dimPastEvents = false,
+    this.showYearProgress = false,
+    this.paperStyle = 'plain',
     required this.updatedAt,
     this.lastRenderedAt,
   });
@@ -43,6 +53,8 @@ class LockScreenConfig {
   final bool showPinnedNote;
   final String pinnedNoteText;
   final bool dimPastEvents;
+  final bool showYearProgress;
+  final String paperStyle;
   final DateTime updatedAt;
   final DateTime? lastRenderedAt;
 
@@ -71,6 +83,8 @@ class LockScreenConfig {
     bool? showPinnedNote,
     String? pinnedNoteText,
     bool? dimPastEvents,
+    bool? showYearProgress,
+    String? paperStyle,
     DateTime? updatedAt,
     DateTime? Function()? lastRenderedAt,
   }) => LockScreenConfig(
@@ -91,6 +105,8 @@ class LockScreenConfig {
     showPinnedNote: showPinnedNote ?? this.showPinnedNote,
     pinnedNoteText: pinnedNoteText ?? this.pinnedNoteText,
     dimPastEvents: dimPastEvents ?? this.dimPastEvents,
+    showYearProgress: showYearProgress ?? this.showYearProgress,
+    paperStyle: paperStyle ?? this.paperStyle,
     updatedAt: updatedAt ?? this.updatedAt,
     lastRenderedAt: lastRenderedAt != null
         ? lastRenderedAt()
@@ -116,6 +132,8 @@ class LockScreenConfig {
       other.showPinnedNote == showPinnedNote &&
       other.pinnedNoteText == pinnedNoteText &&
       other.dimPastEvents == dimPastEvents &&
+      other.showYearProgress == showYearProgress &&
+      other.paperStyle == paperStyle &&
       listEquals(other.moduleOrder, moduleOrder);
 
   @override
@@ -136,6 +154,8 @@ class LockScreenConfig {
     showPinnedNote,
     pinnedNoteText,
     dimPastEvents,
+    showYearProgress,
+    paperStyle,
     Object.hashAll(moduleOrder),
   );
 }

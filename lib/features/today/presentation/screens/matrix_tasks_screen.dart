@@ -7,7 +7,9 @@ import '../../../../core/theme/moss_motion.dart';
 import '../../../../core/utils/moss_haptics.dart';
 import '../../../../core/utils/thai_date_formatter.dart';
 import '../../../stats/presentation/stats_screen.dart';
+import '../../../tasks/domain/matrix_board.dart';
 import '../../../tasks/domain/task.dart';
+import '../../../tasks/presentation/matrix_boards_controller.dart';
 import '../../../tasks/presentation/screens/add_task_screen.dart';
 import '../today_controller.dart';
 
@@ -32,7 +34,6 @@ class MatrixTasksScreen extends ConsumerStatefulWidget {
 
 class _MatrixTasksScreenState extends ConsumerState<MatrixTasksScreen> {
   bool _isGridView = true;
-  String _selectedMatrixName = 'เมทริกซ์ 4 ช่อง';
   int? _justDroppedQuadrant;
   String? _justMovedTaskId;
 
@@ -77,33 +78,38 @@ class _MatrixTasksScreenState extends ConsumerState<MatrixTasksScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(todayControllerProvider);
+    final boardsState = ref.watch(matrixBoardsControllerProvider);
+    final activeBoard = boardsState.activeBoard;
     final allTasks = state.allTasks;
 
     final filteredTasks = allTasks.where((t) {
       if (t.status != TaskStatus.todo) return false;
-      if (_selectedMatrixName == 'งานและออฟฟิศ') {
-        final match =
+      if (activeBoard.isDefault) return true;
+      final boardKeyword = activeBoard.name.toLowerCase();
+      final match =
+          (t.projectName?.toLowerCase().contains(boardKeyword) ?? false) ||
+          t.title.toLowerCase().contains(boardKeyword) ||
+          (t.note?.toLowerCase().contains(boardKeyword) ?? false);
+      if (activeBoard.name == 'งานและออฟฟิศ') {
+        return match ||
             (t.projectName?.contains('งาน') ?? false) ||
             (t.projectName?.contains('ออฟฟิศ') ?? false) ||
             t.title.contains('งาน') ||
             (t.note?.contains('งาน') ?? false);
-        if (!match) return false;
-      } else if (_selectedMatrixName == 'ชีวิตส่วนตัว') {
-        final match =
+      } else if (activeBoard.name == 'ชีวิตส่วนตัว') {
+        return match ||
             (t.projectName?.contains('ส่วนตัว') ?? false) ||
             t.title.contains('ส่วนตัว') ||
             t.title.contains('บ้าน') ||
             (t.note?.contains('ส่วนตัว') ?? false);
-        if (!match) return false;
-      } else if (_selectedMatrixName == 'การเรียนรู้ & โปรเจกต์') {
-        final match =
+      } else if (activeBoard.name == 'การเรียนรู้ & โปรเจกต์') {
+        return match ||
             (t.projectName?.contains('เรียน') ?? false) ||
             (t.projectName?.contains('โปรเจกต์') ?? false) ||
             t.title.contains('เรียน') ||
             t.title.contains('โปรเจกต์');
-        if (!match) return false;
       }
-      return true;
+      return match;
     }).toList();
 
     final q1Tasks = filteredTasks.where((t) => t.quadrant == 1).toList();
@@ -226,49 +232,49 @@ class _MatrixTasksScreenState extends ConsumerState<MatrixTasksScreen> {
                     // Matrix selector
                     Semantics(
                       button: true,
-                      label: 'เลือกมุมมองเมทริกซ์ ปัจจุบัน $_selectedMatrixName',
+                      label: 'เลือกมุมมองเมทริกซ์ ปัจจุบัน ${activeBoard.name}',
                       child: InkWell(
                         onTap: () => _openMatrixSelector(context),
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
                           ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.grid_view_rounded,
-                              size: 14,
-                              color: context.mossTheme.warning,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.outlineVariant,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _selectedMatrixName,
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                activeBoard.icon,
+                                size: 14,
+                                color: activeBoard.color,
                               ),
-                            ),
-                            const SizedBox(width: 3),
-                            Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 16,
-                              color: context.mossTheme.textSecondary,
-                            ),
-                          ],
+                              const SizedBox(width: 6),
+                              Text(
+                                activeBoard.name,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 16,
+                                color: context.mossTheme.textSecondary,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
 
                   // Completed tasks
                   Semantics(
@@ -386,17 +392,18 @@ class _MatrixTasksScreenState extends ConsumerState<MatrixTasksScreen> {
               ),
               child: _isGridView
                   ? KeyedSubtree(
-                      key: ValueKey('grid_view'),
+                      key: ValueKey('grid_view_${activeBoard.id}'),
                       child: _buildMatrixGrid(
                         context,
                         q1Tasks,
                         q2Tasks,
                         q3Tasks,
                         q4Tasks,
+                        activeBoard,
                       ),
                     )
                   : KeyedSubtree(
-                      key: ValueKey('list_view'),
+                      key: ValueKey('list_view_${activeBoard.id}'),
                       child: _buildListView(context, allTasks),
                     ),
             ),
@@ -407,50 +414,51 @@ class _MatrixTasksScreenState extends ConsumerState<MatrixTasksScreen> {
   );
 }
 
-Widget _buildMatrixGrid(
-  BuildContext context,
-  List<Task> q1,
-  List<Task> q2,
-  List<Task> q3,
-  List<Task> q4,
-) {
-  return LayoutBuilder(
-    builder: (context, constraints) {
-      final needsScrollableGrid =
-          constraints.maxWidth >= MossBreakpoints.expanded ||
-          constraints.maxHeight < 560;
-      if (!needsScrollableGrid) {
-        return _buildPortraitMatrixGrid(context, q1, q2, q3, q4);
-      }
+  Widget _buildMatrixGrid(
+    BuildContext context,
+    List<Task> q1,
+    List<Task> q2,
+    List<Task> q3,
+    List<Task> q4,
+    MatrixBoard board,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final needsScrollableGrid =
+            constraints.maxWidth >= MossBreakpoints.expanded ||
+            constraints.maxHeight < 560;
+        if (!needsScrollableGrid) {
+          return _buildPortraitMatrixGrid(context, q1, q2, q3, q4, board);
+        }
 
-      final columns = constraints.maxWidth >= 720 ? 4 : 2;
-      final height = constraints.maxHeight < 560 ? 300.0 : 420.0;
-      final entries = <(int, List<Task>)>[(1, q1), (2, q2), (3, q3), (4, q4)];
-      return GridView(
-        key: const PageStorageKey<String>('matrix-adaptive-grid'),
-        cacheExtent: 800,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: columns,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          mainAxisExtent: height,
-        ),
-        children: [
-          for (final entry in entries)
-            _buildQuadrantCard(entry.$1, entry.$2),
-        ],
-      );
-    },
-  );
-}
+        final columns = constraints.maxWidth >= 720 ? 4 : 2;
+        final height = constraints.maxHeight < 560 ? 300.0 : 420.0;
+        final entries = <(int, List<Task>)>[(1, q1), (2, q2), (3, q3), (4, q4)];
+        return GridView(
+          key: PageStorageKey<String>('matrix-adaptive-grid-${board.id}'),
+          cacheExtent: 800,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            mainAxisExtent: height,
+          ),
+          children: [
+            for (final entry in entries)
+              _buildQuadrantCard(entry.$1, entry.$2, board),
+          ],
+        );
+      },
+    );
+  }
 
-  Widget _buildQuadrantCard(int quadrant, List<Task> tasks) {
+  Widget _buildQuadrantCard(int quadrant, List<Task> tasks, MatrixBoard board) {
     final titles = <int, String>{
-      1: 'สำคัญและเร่งด่วน',
-      2: 'สำคัญ',
-      3: 'เร่งด่วน',
-      4: 'สักวันหนึ่ง',
+      1: board.q1Name,
+      2: board.q2Name,
+      3: board.q3Name,
+      4: board.q4Name,
     };
     final icons = <int, IconData>{
       1: Icons.local_fire_department_rounded,
@@ -461,7 +469,7 @@ Widget _buildMatrixGrid(
     final accent = AppColors.quadrantFor(quadrant);
     return _QuadrantCard(
       quadrantId: quadrant,
-      title: titles[quadrant]!,
+      title: titles[quadrant] ?? 'ช่อง $quadrant',
       headerIcon: icons[quadrant]!,
       headerIconColor: accent,
       headerBgColor: accent.withValues(alpha: 0.12),
@@ -470,7 +478,7 @@ Widget _buildMatrixGrid(
       tasks: tasks,
       isTargetOfDrop: _justDroppedQuadrant == quadrant,
       recentlyMovedTaskId: _justMovedTaskId,
-      onAdd: () => _openAddTaskForQuadrant(quadrant),
+      onAdd: () => _openAddTaskForQuadrant(quadrant, board),
       onComplete: _toggleTaskComplete,
       onTapTask: widget.onOpenTask,
       onTaskDropped: (task) => _moveTaskToQuadrant(task, quadrant),
@@ -483,6 +491,7 @@ Widget _buildMatrixGrid(
     List<Task> q2,
     List<Task> q3,
     List<Task> q4,
+    MatrixBoard board,
   ) {
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 8, 16, 100),
@@ -491,9 +500,9 @@ Widget _buildMatrixGrid(
           Expanded(
             child: Row(
               children: [
-                Expanded(child: _buildQuadrantCard(1, q1)),
+                Expanded(child: _buildQuadrantCard(1, q1, board)),
                 SizedBox(width: 12),
-                Expanded(child: _buildQuadrantCard(2, q2)),
+                Expanded(child: _buildQuadrantCard(2, q2, board)),
               ],
             ),
           ),
@@ -501,9 +510,9 @@ Widget _buildMatrixGrid(
           Expanded(
             child: Row(
               children: [
-                Expanded(child: _buildQuadrantCard(3, q3)),
+                Expanded(child: _buildQuadrantCard(3, q3, board)),
                 SizedBox(width: 12),
-                Expanded(child: _buildQuadrantCard(4, q4)),
+                Expanded(child: _buildQuadrantCard(4, q4, board)),
               ],
             ),
           ),
@@ -626,13 +635,17 @@ Widget _buildMatrixGrid(
     );
   }
 
-  Future<void> _openAddTaskForQuadrant(int quadrant) async {
+  Future<void> _openAddTaskForQuadrant(int quadrant, MatrixBoard board) async {
     MossHaptics.light();
     if (widget.onAddTaskQuadrant != null) {
       widget.onAddTaskQuadrant!(quadrant);
       return;
     }
-    final result = await AddTaskScreen.show(context, initialQuadrant: quadrant);
+    final result = await AddTaskScreen.show(
+      context,
+      initialQuadrant: quadrant,
+      initialProject: board.isDefault ? null : board.name,
+    );
     if (result != null && result is Task) {
       await ref.read(todayControllerProvider.notifier).addManualTask(result);
     }
@@ -668,13 +681,68 @@ Widget _buildMatrixGrid(
 
   void _openMatrixSelector(BuildContext context) {
     MossHaptics.selection();
+    final boardsController = ref.read(matrixBoardsControllerProvider.notifier);
+    final boardsState = ref.read(matrixBoardsControllerProvider);
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _MatrixSelectorSheet(
-        selectedMatrix: _selectedMatrixName,
-        onSelect: (name) {
-          setState(() => _selectedMatrixName = name);
+        boards: boardsState.boards,
+        activeBoard: boardsState.activeBoard,
+        onSelect: (board) {
+          boardsController.selectBoard(board);
+        },
+        onCreate: () => _openCreateBoardDialog(context),
+        onEdit: (board) => _openEditBoardDialog(context, board),
+        onDelete: (board) async {
+          await boardsController.deleteBoard(board.id);
+        },
+      ),
+    );
+  }
+
+  Future<void> _openCreateBoardDialog(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _BoardFormSheet(
+        title: 'สร้างเมทริกซ์ใหม่',
+        onSave: (name, iconCode, colorValue, q1, q2, q3, q4) async {
+          await ref.read(matrixBoardsControllerProvider.notifier).createBoard(
+                name: name,
+                iconCode: iconCode,
+                colorValue: colorValue,
+                q1Name: q1,
+                q2Name: q2,
+                q3Name: q3,
+                q4Name: q4,
+              );
+        },
+      ),
+    );
+  }
+
+  Future<void> _openEditBoardDialog(BuildContext context, MatrixBoard board) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _BoardFormSheet(
+        title: 'แก้ไขเมทริกซ์และชื่อช่อง',
+        initialBoard: board,
+        onSave: (name, iconCode, colorValue, q1, q2, q3, q4) async {
+          final updated = board.copyWith(
+            name: name,
+            iconCode: iconCode,
+            colorValue: colorValue,
+            q1Name: q1,
+            q2Name: q2,
+            q3Name: q3,
+            q4Name: q4,
+          );
+          await ref.read(matrixBoardsControllerProvider.notifier).updateBoard(updated);
         },
       ),
     );

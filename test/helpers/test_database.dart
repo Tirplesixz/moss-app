@@ -16,6 +16,7 @@ Future<AppDatabase> createTestDatabase() async {
   await db.execute(AppDatabaseTables.createEventsTable);
   await db.execute(AppDatabaseTables.createLockScreenConfigsTable);
   await db.execute(AppDatabaseTables.createNotesTable);
+  await db.execute(AppDatabaseTables.createBoardsTable);
   for (final index in AppDatabaseTables.createIndices) {
     await db.execute(index);
   }

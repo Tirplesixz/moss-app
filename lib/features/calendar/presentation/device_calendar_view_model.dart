@@ -10,6 +10,7 @@ class DeviceCalendarViewModel extends ChangeNotifier {
 
   CalendarAccessStatus? _status;
   List<DeviceCalendarEvent> _events = const [];
+  Set<String> _deselectedCalendarNames = const {};
   bool _loading = false;
   Object? _error;
   DateTime? _lastLoadedMonth;
@@ -20,6 +21,28 @@ class DeviceCalendarViewModel extends ChangeNotifier {
   Object? get error => _error;
   bool get hasAccess => _status == CalendarAccessStatus.granted;
   bool get isDenied => _status == CalendarAccessStatus.denied;
+
+  Set<String> get availableCalendarNames =>
+      _events.map((e) => e.calendarName).where((name) => name.isNotEmpty).toSet();
+  Set<String> get deselectedCalendarNames => _deselectedCalendarNames;
+
+  bool isCalendarVisible(String name) => !_deselectedCalendarNames.contains(name);
+
+  void toggleCalendarVisibility(String name) {
+    final next = Set<String>.from(_deselectedCalendarNames);
+    if (next.contains(name)) {
+      next.remove(name);
+    } else {
+      next.add(name);
+    }
+    _deselectedCalendarNames = next;
+    notifyListeners();
+  }
+
+  void showAllCalendars() {
+    _deselectedCalendarNames = const {};
+    notifyListeners();
+  }
 
   /// Silently checks permission on screen load.
   /// If already granted, immediately fetches events for [around].
@@ -109,6 +132,10 @@ class DeviceCalendarViewModel extends ChangeNotifier {
     final dayStart = DateTime(day.year, day.month, day.day);
     final dayEnd = dayStart.add(const Duration(days: 1));
     return _events.where((event) {
+      if (event.calendarName.isNotEmpty &&
+          _deselectedCalendarNames.contains(event.calendarName)) {
+        return false;
+      }
       final start = event.start.toLocal();
       final end = event.end.toLocal();
       return start.isBefore(dayEnd) && end.isAfter(dayStart);

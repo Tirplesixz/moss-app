@@ -8,6 +8,8 @@ class AppDatabaseTables {
   static const String tableNotifs = 'notifs';
   static const String tableEvents = 'events';
   static const String tableLockScreenConfigs = 'lockscreen_configs';
+  static const String tableNotes = 'notes';
+  static const String tableBoards = 'boards';
 
   static const String createTasksTable =
       '''
@@ -112,12 +114,12 @@ class AppDatabaseTables {
       show_pinned_note INTEGER NOT NULL DEFAULT 0,
       pinned_note_text TEXT NOT NULL DEFAULT '',
       dim_past_events INTEGER NOT NULL DEFAULT 0,
+      show_year_progress INTEGER NOT NULL DEFAULT 0,
+      paper_style TEXT NOT NULL DEFAULT 'plain',
       updated_at TEXT NOT NULL,
       last_rendered_at TEXT
     );
   ''';
-
-  static const String tableNotes = 'notes';
 
   static const String createNotesTable =
       '''
@@ -133,6 +135,24 @@ class AppDatabaseTables {
     );
   ''';
 
+  static const String createBoardsTable =
+      '''
+    CREATE TABLE IF NOT EXISTS $tableBoards (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      icon_code INTEGER NOT NULL DEFAULT 59574,
+      color_value INTEGER NOT NULL DEFAULT 4294288931,
+      q1_name TEXT NOT NULL DEFAULT 'สำคัญและเร่งด่วน',
+      q2_name TEXT NOT NULL DEFAULT 'สำคัญ',
+      q3_name TEXT NOT NULL DEFAULT 'เร่งด่วน',
+      q4_name TEXT NOT NULL DEFAULT 'สักวันหนึ่ง',
+      is_default INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      deleted_at TEXT
+    );
+  ''';
+
   static const List<String> createIndices = [
     'CREATE INDEX IF NOT EXISTS idx_tasks_status ON $tableTasks(status, deleted_at);',
     'CREATE INDEX IF NOT EXISTS idx_tasks_deadline ON $tableTasks(deadline_at);',
@@ -142,5 +162,6 @@ class AppDatabaseTables {
     'CREATE INDEX IF NOT EXISTS idx_notifs_fire_at ON $tableNotifs(fire_at, deleted_at);',
     'CREATE INDEX IF NOT EXISTS idx_events_time ON $tableEvents(occurred_at);',
     'CREATE INDEX IF NOT EXISTS idx_notes_updated ON $tableNotes(pinned DESC, updated_at DESC, deleted_at);',
+    'CREATE INDEX IF NOT EXISTS idx_boards_created ON $tableBoards(is_default DESC, created_at ASC, deleted_at);',
   ];
 }

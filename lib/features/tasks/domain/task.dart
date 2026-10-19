@@ -82,6 +82,7 @@ enum TaskRepeatRule {
   daily('daily', 'ทุกวัน'),
   weekdays('weekdays', 'วันธรรมดา (จ-ศ)'),
   weekly('weekly', 'ทุกสัปดาห์'),
+  biweekly('biweekly', 'ทุก 2 สัปดาห์'),
   monthly('monthly', 'ทุกเดือน'),
   yearly('yearly', 'ทุกปี');
 

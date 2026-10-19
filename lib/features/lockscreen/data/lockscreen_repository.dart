@@ -39,6 +39,8 @@ class LockScreenRepository {
       showPinnedNote: (row['show_pinned_note'] as int? ?? 0) == 1,
       pinnedNoteText: (row['pinned_note_text'] as String?) ?? '',
       dimPastEvents: (row['dim_past_events'] as int? ?? 0) == 1,
+      showYearProgress: (row['show_year_progress'] as int? ?? 0) == 1,
+      paperStyle: (row['paper_style'] as String?) ?? 'plain',
       updatedAt: DateTime.parse(row['updated_at'] as String),
       lastRenderedAt: row['last_rendered_at'] == null
           ? null
@@ -69,6 +71,8 @@ class LockScreenRepository {
         'show_pinned_note': config.showPinnedNote ? 1 : 0,
         'pinned_note_text': config.pinnedNoteText,
         'dim_past_events': config.dimPastEvents ? 1 : 0,
+        'show_year_progress': config.showYearProgress ? 1 : 0,
+        'paper_style': config.paperStyle,
         'updated_at': config.updatedAt.toUtc().toIso8601String(),
         'last_rendered_at': config.lastRenderedAt?.toUtc().toIso8601String(),
       },

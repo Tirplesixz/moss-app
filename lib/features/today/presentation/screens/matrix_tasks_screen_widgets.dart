@@ -649,44 +649,30 @@ class _CompletedTasksSheet extends StatelessWidget {
 }
 
 /// Bottom Sheet for switching active matrix
+/// Bottom Sheet for switching active matrix with full customization
 class _MatrixSelectorSheet extends StatelessWidget {
   const _MatrixSelectorSheet({
-    required this.selectedMatrix,
+    required this.boards,
+    required this.activeBoard,
     required this.onSelect,
+    required this.onCreate,
+    required this.onEdit,
+    required this.onDelete,
   });
 
-  final String selectedMatrix;
-  final ValueChanged<String> onSelect;
-
-  static final _matrices = [
-    {
-      'name': 'เมทริกซ์ของฉัน',
-      'icon': Icons.grid_view_rounded,
-      'color': Color(0xFFF5A623),
-    },
-    {
-      'name': 'งานและออฟฟิศ',
-      'icon': Icons.work_outline_rounded,
-      'color': Color(0xFF0A84FF),
-    },
-    {
-      'name': 'ชีวิตส่วนตัว',
-      'icon': Icons.favorite_outline_rounded,
-      'color': Color(0xFFFF453A),
-    },
-    {
-      'name': 'การเรียนรู้ & โปรเจกต์',
-      'icon': Icons.school_outlined,
-      'color': Color(0xFF34D399),
-    },
-  ];
+  final List<MatrixBoard> boards;
+  final MatrixBoard activeBoard;
+  final ValueChanged<MatrixBoard> onSelect;
+  final VoidCallback onCreate;
+  final ValueChanged<MatrixBoard> onEdit;
+  final ValueChanged<MatrixBoard> onDelete;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.fromLTRB(
         20,
@@ -703,63 +689,436 @@ class _MatrixSelectorSheet extends StatelessWidget {
               width: 44,
               height: 4,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.outline,
+                color: Theme.of(context).colorScheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
-          SizedBox(height: 16),
-          Text(
-            'เลือกเมทริกซ์',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'เลือกเมทริกซ์',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  onCreate();
+                },
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('สร้างใหม่'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const ClampingScrollPhysics(),
+              itemCount: boards.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final board = boards[index];
+                final isSelected = board.id == activeBoard.id;
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: board.color.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(board.icon, color: board.color, size: 20),
+                  ),
+                  title: Text(
+                    board.name,
+                    style: TextStyle(
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.8),
+                      fontSize: 15,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Q1: ${board.q1Name} • Q2: ${board.q2Name}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.5),
+                      fontSize: 11.5,
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'แก้ไขชื่อช่องและเมทริกซ์',
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          onEdit(board);
+                        },
+                      ),
+                      if (!board.isDefault && boards.length > 1)
+                        IconButton(
+                          tooltip: 'ลบเมทริกซ์นี้',
+                          icon: Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            onDelete(board);
+                          },
+                        ),
+                      if (isSelected)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Icon(
+                            Icons.check_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                    ],
+                  ),
+                  onTap: () {
+                    MossHaptics.selection();
+                    onSelect(board);
+                    Navigator.pop(context);
+                  },
+                );
+              },
             ),
           ),
-          SizedBox(height: 12),
-          ..._matrices.map((m) {
-            final name = m['name'] as String;
-            final icon = m['icon'] as IconData;
-            final color = m['color'] as Color;
-            final isSelected = selectedMatrix.startsWith(name.substring(0, 5));
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 18),
-              ),
-              title: Text(
-                name,
-                style: TextStyle(
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.onSurface
-                      : Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.72),
-                  fontSize: 15,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-              trailing: isSelected
-                  ? Icon(
-                      Icons.check_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                    )
-                  : null,
-              onTap: () {
-                MossHaptics.selection();
-                onSelect(name);
-                Navigator.pop(context);
-              },
-            );
-          }),
         ],
+      ),
+    );
+  }
+}
+
+/// Form sheet to create or edit a Matrix Board and customize its 4 quadrant names
+class _BoardFormSheet extends StatefulWidget {
+  const _BoardFormSheet({
+    required this.title,
+    this.initialBoard,
+    required this.onSave,
+  });
+
+  final String title;
+  final MatrixBoard? initialBoard;
+  final void Function(
+    String name,
+    int iconCode,
+    int colorValue,
+    String q1,
+    String q2,
+    String q3,
+    String q4,
+  ) onSave;
+
+  @override
+  State<_BoardFormSheet> createState() => _BoardFormSheetState();
+}
+
+class _BoardFormSheetState extends State<_BoardFormSheet> {
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _q1Ctrl;
+  late final TextEditingController _q2Ctrl;
+  late final TextEditingController _q3Ctrl;
+  late final TextEditingController _q4Ctrl;
+  late int _selectedColor;
+  late int _selectedIcon;
+
+  static const _colors = [
+    0xFFF5A623,
+    0xFF0A84FF,
+    0xFFFF453A,
+    0xFF34D399,
+    0xFFAF52DE,
+    0xFFFF9F0A,
+    0xFF64D2FF,
+    0xFFFF375F,
+  ];
+
+  static const _icons = [
+    Icons.grid_view_rounded,
+    Icons.work_outline_rounded,
+    Icons.favorite_outline_rounded,
+    Icons.school_outlined,
+    Icons.star_outline_rounded,
+    Icons.flag_outlined,
+    Icons.rocket_launch_outlined,
+    Icons.bookmark_outline_rounded,
+    Icons.lightbulb_outline_rounded,
+    Icons.fitness_center_rounded,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final b = widget.initialBoard;
+    _nameCtrl = TextEditingController(text: b?.name ?? '');
+    _q1Ctrl = TextEditingController(text: b?.q1Name ?? 'สำคัญและเร่งด่วน');
+    _q2Ctrl = TextEditingController(text: b?.q2Name ?? 'สำคัญ');
+    _q3Ctrl = TextEditingController(text: b?.q3Name ?? 'เร่งด่วน');
+    _q4Ctrl = TextEditingController(text: b?.q4Name ?? 'สักวันหนึ่ง');
+    _selectedColor = b?.colorValue ?? _colors.first;
+    _selectedIcon = b?.iconCode ?? _icons.first.codePoint;
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _q1Ctrl.dispose();
+    _q2Ctrl.dispose();
+    _q3Ctrl.dispose();
+    _q4Ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        14,
+        20,
+        MediaQuery.of(context).viewInsets.bottom +
+            MediaQuery.of(context).padding.bottom +
+            20,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              widget.title,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _nameCtrl,
+              decoration: const InputDecoration(
+                labelText: 'ชื่อเมทริกซ์',
+                hintText: 'เช่น งานส่วนตัว, โปรเจกต์ลูกค้า',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'เลือกสีและไอคอน',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final c in _colors)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: InkWell(
+                        onTap: () => setState(() => _selectedColor = c),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Color(c),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _selectedColor == c
+                                  ? Theme.of(context).colorScheme.onSurface
+                                  : Colors.transparent,
+                              width: 2.5,
+                            ),
+                          ),
+                          child: _selectedColor == c
+                              ? const Icon(
+                                  Icons.check_rounded,
+                                  size: 18,
+                                  color: Colors.white,
+                                )
+                              : null,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final icon in _icons)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: InkWell(
+                        onTap: () =>
+                            setState(() => _selectedIcon = icon.codePoint),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: _selectedIcon == icon.codePoint
+                                ? Color(_selectedColor).withValues(alpha: 0.2)
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: _selectedIcon == icon.codePoint
+                                  ? Color(_selectedColor)
+                                  : Colors.transparent,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Icon(
+                            icon,
+                            size: 20,
+                            color: _selectedIcon == icon.codePoint
+                                ? Color(_selectedColor)
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'กำหนดชื่อ 4 ช่องของเมทริกซ์ (Custom Quadrant Names)',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _q1Ctrl,
+              decoration: InputDecoration(
+                labelText: 'ช่องที่ 1 (สำคัญและเร่งด่วน)',
+                prefixIcon: const Icon(
+                  Icons.local_fire_department_rounded,
+                  color: Color(0xFFFF453A),
+                ),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _q2Ctrl,
+              decoration: InputDecoration(
+                labelText: 'ช่องที่ 2 (สำคัญ ไม่เร่งด่วน)',
+                prefixIcon: const Icon(
+                  Icons.calendar_today_rounded,
+                  color: Color(0xFF0A84FF),
+                ),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _q3Ctrl,
+              decoration: InputDecoration(
+                labelText: 'ช่องที่ 3 (ไม่สำคัญ เร่งด่วน)',
+                prefixIcon: const Icon(
+                  Icons.bolt_rounded,
+                  color: Color(0xFFF5A623),
+                ),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _q4Ctrl,
+              decoration: InputDecoration(
+                labelText: 'ช่องที่ 4 (ไม่สำคัญ ไม่เร่งด่วน)',
+                prefixIcon: const Icon(
+                  Icons.menu_rounded,
+                  color: Color(0xFF34D399),
+                ),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton(
+                onPressed: () {
+                  final name = _nameCtrl.text.trim();
+                  if (name.isEmpty) return;
+                  MossHaptics.success();
+                  widget.onSave(
+                    name,
+                    _selectedIcon,
+                    _selectedColor,
+                    _q1Ctrl.text.trim().isEmpty
+                        ? 'สำคัญและเร่งด่วน'
+                        : _q1Ctrl.text.trim(),
+                    _q2Ctrl.text.trim().isEmpty
+                        ? 'สำคัญ'
+                        : _q2Ctrl.text.trim(),
+                    _q3Ctrl.text.trim().isEmpty
+                        ? 'เร่งด่วน'
+                        : _q3Ctrl.text.trim(),
+                    _q4Ctrl.text.trim().isEmpty
+                        ? 'สักวันหนึ่ง'
+                        : _q4Ctrl.text.trim(),
+                  );
+                  Navigator.pop(context);
+                },
+                child: const Text('บันทึกเมทริกซ์'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -443,6 +443,26 @@ class _EditorControlsState extends State<_EditorControls> {
                   ),
                   onChanged: viewModel.setPinnedNoteText,
                 ),
+                const SizedBox(height: 10),
+                Text(
+                  'สไตล์กระดาษโน้ต',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 6),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'plain', label: Text('เรียบ')),
+                    ButtonSegment(value: 'lined', label: Text('มีเส้น')),
+                    ButtonSegment(value: 'grid', label: Text('ตาราง')),
+                    ButtonSegment(value: 'tape', label: Text('เทปแปะ')),
+                  ],
+                  selected: {viewModel.config.paperStyle},
+                  onSelectionChanged: (value) =>
+                      viewModel.setPaperStyle(value.first),
+                ),
               ],
             ),
           ),
@@ -542,6 +562,12 @@ class _EditorControlsState extends State<_EditorControls> {
       'ความคืบหน้าของปี',
       model.config.showProgress,
       model.setShowProgress,
+    ),
+    'year_progress' => (
+      Icons.apps_rounded,
+      '🌱 จุด 365 วัน (Year Progress)',
+      model.config.showYearProgress,
+      model.setShowYearProgress,
     ),
     'tasks' => (
       Icons.checklist_rounded,

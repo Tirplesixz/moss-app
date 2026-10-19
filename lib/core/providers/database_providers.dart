@@ -13,11 +13,17 @@ import '../../features/notes/presentation/notes_view_model.dart';
 import '../../features/calendar/data/device_calendar_service.dart';
 import '../../features/calendar/data/calendar_task_sync_service.dart';
 import '../../features/calendar/presentation/device_calendar_view_model.dart';
+import '../../features/tasks/data/board_repository.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
   ref.onDispose(() => db.close());
   return db;
+});
+
+final boardRepositoryProvider = Provider<BoardRepository>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return BoardRepository(db);
 });
 
 final taskRepositoryProvider = Provider<TaskRepository>((ref) {

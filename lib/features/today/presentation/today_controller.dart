@@ -363,6 +363,8 @@ class TodayController extends StateNotifier<TodayState> {
               nextDeadline.weekday == DateTime.sunday);
         case TaskRepeatRule.weekly:
           nextDeadline = nextDeadline.add(const Duration(days: 7));
+        case TaskRepeatRule.biweekly:
+          nextDeadline = nextDeadline.add(const Duration(days: 14));
         case TaskRepeatRule.monthly:
           nextDeadline = DateTime.utc(
             nextDeadline.year,

@@ -10,6 +10,8 @@ import '../../../core/providers/notification_providers.dart';
 import '../../../core/scheduler/scheduler.dart';
 import '../../../core/utils/time_utils.dart';
 import '../../settings/data/settings_repository.dart';
+import '../../lockscreen/data/lockscreen_sync_service.dart';
+import '../../calendar/data/calendar_task_sync_service.dart';
 import '../../settings/domain/app_settings.dart';
 import '../../tasks/data/block_repository.dart';
 import '../../tasks/data/task_repository.dart';
@@ -25,16 +27,23 @@ class TodayController extends StateNotifier<TodayState> {
     required SettingsRepository settingsRepository,
     required NotificationService notificationService,
     required EventLogRepository eventLogRepository,
+    LockScreenSyncService? lockScreenSyncService,
+    CalendarTaskSyncService? calendarTaskSyncService,
+    bool enableTicker = true,
   }) : _taskRepository = taskRepository,
        _blockRepository = blockRepository,
        _settingsRepository = settingsRepository,
        _notificationService = notificationService,
        _eventLogRepository = eventLogRepository,
+       _lockScreenSyncService = lockScreenSyncService,
+       _calendarTaskSyncService = calendarTaskSyncService,
        super(
          TodayState(currentDate: _localDay(DateTime.now()), isLoading: true),
        ) {
     unawaited(load());
-    _ticker = Timer.periodic(const Duration(minutes: 1), (_) => _tick());
+    if (enableTicker) {
+      _ticker = Timer.periodic(const Duration(minutes: 1), (_) => _tick());
+    }
   }
 
   static const _uuid = Uuid();
@@ -44,12 +53,15 @@ class TodayController extends StateNotifier<TodayState> {
   final SettingsRepository _settingsRepository;
   final NotificationService _notificationService;
   final EventLogRepository _eventLogRepository;
+  final LockScreenSyncService? _lockScreenSyncService;
+  final CalendarTaskSyncService? _calendarTaskSyncService;
 
   AppSettings _settings = AppSettings.createDefault();
   Map<String, Task> _tasksById = const {};
   Timer? _ticker;
   bool _hasRequestedPermission = false;
   _UndoSnapshot? _undoSnapshot;
+  UndoableAction? _lastAction;
 
   bool get hasRequestedPermission => _hasRequestedPermission;
   AppSettings get settings => _settings;
@@ -62,6 +74,9 @@ class TodayController extends StateNotifier<TodayState> {
     try {
       await _notificationService.initialize();
       _settings = await _settingsRepository.getSettings();
+      if (_settings.saveCompletedToCalendar) {
+        await _calendarTaskSyncService?.syncAllTodoTasks();
+      }
       await _refreshFromDatabase();
       await _eventLogRepository.track('app_open');
     } catch (error) {
@@ -128,6 +143,10 @@ class TodayController extends StateNotifier<TodayState> {
       allTasks: tasks,
       allBlocks: activeBlocks,
     );
+    final lockScreenSync = _lockScreenSyncService?.syncIfEnabled();
+    if (lockScreenSync != null) {
+      unawaited(lockScreenSync.then<void>((_) {}));
+    }
   }
 
   Block? _findNowBlock(List<Block> blocks, DateTime now) {
@@ -247,6 +266,9 @@ class TodayController extends StateNotifier<TodayState> {
       tasks: tasks,
       now: now,
     );
+    if (_settings.saveCompletedToCalendar) {
+      await _calendarTaskSyncService?.syncAllTodoTasks();
+    }
     await _refreshFromDatabase(overflow: result.overflow);
     return result;
   }
@@ -267,9 +289,16 @@ class TodayController extends StateNotifier<TodayState> {
   Future<void> deleteBlock(Block block) async {
     await _notificationService.cancelNotificationsForBlock(block.id);
     await _blockRepository.softDeleteBlock(block.id);
-    if (block.taskId != null) {
-      await _taskRepository.softDeleteTask(block.taskId!);
+    final taskId = block.taskId;
+    if (taskId != null) {
+      final task = _tasksById[taskId];
+      if (task != null) await _calendarTaskSyncService?.removeTask(task);
+      await _taskRepository.softDeleteTask(taskId);
     }
+    _lastAction = UndoableAction('ลบงานแล้ว', () async {
+      await _blockRepository.restoreBlock(block.id);
+      if (taskId != null) await _taskRepository.restoreTask(taskId);
+    });
     await _recomputeScheduleAndNotify();
   }
 
@@ -281,9 +310,25 @@ class TodayController extends StateNotifier<TodayState> {
   Future<void> completeBlock(Block block) async {
     await _notificationService.cancelNotificationsForBlock(block.id);
     await _blockRepository.softDeleteBlock(block.id);
-    if (block.taskId != null) {
-      await _taskRepository.setTaskStatus(block.taskId!, TaskStatus.done);
+    final taskId = block.taskId;
+    if (taskId != null) {
+      await _taskRepository.setTaskStatus(taskId, TaskStatus.done);
+      final task = _tasksById[taskId];
+      if (_settings.saveCompletedToCalendar && task != null) {
+        await _calendarTaskSyncService?.syncTask(
+          task,
+          completed: true,
+          preferredStart: block.startAt,
+          preferredEnd: block.endAt,
+        );
+      }
     }
+    _lastAction = UndoableAction('ทำเสร็จแล้ว', () async {
+      await _blockRepository.restoreBlock(block.id);
+      if (taskId != null) {
+        await _taskRepository.setTaskStatus(taskId, TaskStatus.todo);
+      }
+    });
     await _recomputeScheduleAndNotify();
   }
 
@@ -295,6 +340,90 @@ class TodayController extends StateNotifier<TodayState> {
     await _blockRepository.softDeleteBlocksForTask(task.id);
     await _taskRepository.setTaskStatus(task.id, TaskStatus.done);
     await _eventLogRepository.track('task_completed');
+    if (_settings.saveCompletedToCalendar) {
+      await _calendarTaskSyncService?.syncTask(
+        task,
+        completed: true,
+        preferredStart: blocks.isEmpty ? null : blocks.first.startAt,
+        preferredEnd: blocks.isEmpty ? null : blocks.first.endAt,
+      );
+    }
+
+    // Recurring task engine: spawn the next occurrence from a stable code.
+    final repeatRule = TaskRepeatRule.fromStored(task.repeatRule);
+    if (repeatRule != null) {
+      var nextDeadline = task.deadlineAt ?? TimeUtils.nowUtc();
+      switch (repeatRule) {
+        case TaskRepeatRule.daily:
+          nextDeadline = nextDeadline.add(const Duration(days: 1));
+        case TaskRepeatRule.weekdays:
+          do {
+            nextDeadline = nextDeadline.add(const Duration(days: 1));
+          } while (nextDeadline.weekday == DateTime.saturday ||
+              nextDeadline.weekday == DateTime.sunday);
+        case TaskRepeatRule.weekly:
+          nextDeadline = nextDeadline.add(const Duration(days: 7));
+        case TaskRepeatRule.monthly:
+          nextDeadline = DateTime.utc(
+            nextDeadline.year,
+            nextDeadline.month + 1,
+            nextDeadline.day,
+            nextDeadline.hour,
+            nextDeadline.minute,
+          );
+        case TaskRepeatRule.yearly:
+          nextDeadline = DateTime.utc(
+            nextDeadline.year + 1,
+            nextDeadline.month,
+            nextDeadline.day,
+            nextDeadline.hour,
+            nextDeadline.minute,
+          );
+      }
+
+      final now = TimeUtils.nowUtc();
+      final nextTask = Task(
+        id: _uuid.v4(),
+        title: task.title,
+        note: task.note,
+        durationMin: task.durationMin,
+        deadlineAt: nextDeadline,
+        priority: task.priority,
+        quadrant: task.quadrant,
+        projectName: task.projectName,
+        checklist: task.checklist
+            .map((item) => item.copyWith(done: false))
+            .toList(),
+        repeatRule: repeatRule.storageValue,
+        status: TaskStatus.todo,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await _taskRepository.createTask(nextTask);
+    }
+
+    _lastAction = UndoableAction('ทำเสร็จแล้ว', () async {
+      // Blocks are rebuilt by the scheduler, so only the status is restored.
+      await _taskRepository.setTaskStatus(task.id, TaskStatus.todo);
+    });
+    await _recomputeScheduleAndNotify();
+  }
+
+  Future<void> uncompleteTask(Task task) async {
+    await _taskRepository.setTaskStatus(task.id, TaskStatus.todo);
+    await _eventLogRepository.track('task_uncompleted');
+    _lastAction = UndoableAction('นำกลับมาทำต่อแล้ว', () async {
+      await _taskRepository.setTaskStatus(task.id, TaskStatus.done);
+      if (_settings.saveCompletedToCalendar) {
+        await _calendarTaskSyncService?.syncTask(task, completed: true);
+      }
+    });
+    await _recomputeScheduleAndNotify();
+  }
+
+  Future<void> updateTask(Task task) async {
+    await _taskRepository.updateTask(task);
+    await _eventLogRepository.track('task_updated');
     await _recomputeScheduleAndNotify();
   }
 
@@ -304,15 +433,59 @@ class TodayController extends StateNotifier<TodayState> {
       await _notificationService.cancelNotificationsForBlock(block.id);
     }
     await _blockRepository.softDeleteBlocksForTask(task.id);
+    await _calendarTaskSyncService?.removeTask(task);
     await _taskRepository.softDeleteTask(task.id);
     await _eventLogRepository.track('task_deleted');
+    _lastAction = UndoableAction('ลบงานแล้ว', () async {
+      await _taskRepository.restoreTask(task.id);
+    });
     await _recomputeScheduleAndNotify();
   }
 
-  Future<void> updateTask(Task task) async {
-    await _taskRepository.updateTask(task);
-    await _eventLogRepository.track('task_updated');
+  /// The most recent complete/delete that can still be reverted.
+  UndoableAction? get lastAction => _lastAction;
+
+  /// Reverts [lastAction]. Returns false when there is nothing to undo.
+  Future<bool> undoLastAction() async {
+    final action = _lastAction;
+    if (action == null) return false;
+    _lastAction = null;
+    await action.revert();
+    await _eventLogRepository.track('action_undone');
     await _recomputeScheduleAndNotify();
+    return true;
+  }
+
+  /// Gives the running block [minutes] more time.
+  ///
+  /// Returns false (and changes nothing) when the extra time would collide
+  /// with a fixed appointment or a locked block.
+  Future<bool> extendCurrentBlock(int minutes) async {
+    final block = state.nowBlock;
+    if (block == null || minutes <= 0) return false;
+    final newEnd = block.endAt.add(Duration(minutes: minutes));
+    final blocks = await _blockRepository.getActiveBlocks();
+    final collides = blocks.any(
+      (other) =>
+          other.id != block.id &&
+          (other.isFixed || other.locked) &&
+          other.startAt.isBefore(newEnd) &&
+          other.endAt.isAfter(block.endAt),
+    );
+    if (collides) return false;
+    await _blockRepository.updateBlock(block.copyWith(endAt: newEnd));
+    await _eventLogRepository.track(
+      'block_extended',
+      properties: {'minutes': minutes},
+    );
+    await _recomputeScheduleAndNotify();
+    return true;
+  }
+
+  /// Persists checklist changes without re-running the scheduler.
+  Future<void> updateChecklist(Task task, List<ChecklistItem> items) async {
+    await _taskRepository.updateTask(task.copyWith(checklist: items));
+    await _refreshFromDatabase(overflow: state.overflowTasks);
   }
 
   Future<void> reschedule() async {
@@ -488,8 +661,18 @@ final todayControllerProvider =
         settingsRepository: ref.watch(settingsRepositoryProvider),
         notificationService: ref.watch(notificationServiceProvider),
         eventLogRepository: ref.watch(eventLogRepositoryProvider),
+        lockScreenSyncService: ref.watch(lockScreenSyncServiceProvider),
+        calendarTaskSyncService: ref.watch(calendarTaskSyncServiceProvider),
       );
     });
+
+/// A reversible complete/delete, surfaced to the UI as an "Undo" snackbar.
+class UndoableAction {
+  const UndoableAction(this.label, this.revert);
+
+  final String label;
+  final Future<void> Function() revert;
+}
 
 class _UndoSnapshot {
   final DateTime from;

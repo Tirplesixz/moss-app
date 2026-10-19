@@ -1,32 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/moss_haptics.dart';
 import '../../../../core/utils/thai_date_formatter.dart';
 import '../../../../core/utils/time_utils.dart';
+import '../../../../core/validation/input_limits.dart';
+import '../../../../core/widgets/ios_picker_dialogs.dart';
 import '../../domain/block.dart';
 import '../../domain/task.dart';
 
-enum DeadlinePreset {
-  none('ไม่มีกำหนดส่ง'),
-  thisEvening('เย็นนี้ (18:00)'),
-  tomorrow('พรุ่งนี้ (18:00)'),
-  custom('เลือกวันเอง');
+part 'add_task_screen_widgets.dart';
 
-  final String label;
-  const DeadlinePreset(this.label);
-}
-
-/// Screen for adding or editing a Task or a Fixed Block (PLAN.md Section 5 & 7.2).
+/// Focused task editor with adaptive date and time pickers.
 class AddTaskScreen extends StatefulWidget {
   final String? initialTitle;
   final Task? editTask;
   final Block? editBlock;
+  final int? initialQuadrant;
+  final DateTime? initialDate;
 
   const AddTaskScreen({
     super.key,
     this.initialTitle,
     this.editTask,
     this.editBlock,
+    this.initialQuadrant,
+    this.initialDate,
   });
 
   static Future<Object?> show(
@@ -34,15 +33,23 @@ class AddTaskScreen extends StatefulWidget {
     String? initialTitle,
     Task? editTask,
     Block? editBlock,
+    int? initialQuadrant,
+    DateTime? initialDate,
   }) {
     return showModalBottomSheet<Object?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(
+        maxWidth: 720,
+        maxHeight: MediaQuery.sizeOf(context).height,
+      ),
       builder: (context) => AddTaskScreen(
         initialTitle: initialTitle,
         editTask: editTask,
         editBlock: editBlock,
+        initialQuadrant: initialQuadrant,
+        initialDate: initialDate,
       ),
     );
   }
@@ -52,208 +59,140 @@ class AddTaskScreen extends StatefulWidget {
 }
 
 class _AddTaskScreenState extends State<AddTaskScreen> {
-  static const _uuid = Uuid();
+  static final _uuid = Uuid();
   late final TextEditingController _titleController;
-  late final TextEditingController _projectController;
+  late final TextEditingController _noteController;
 
-  bool _isFixed = false;
-
-  // Task fields
-  int _selectedDurationMin = 30;
-  bool _isCustomDuration = false;
-  DeadlinePreset _selectedDeadlinePreset = DeadlinePreset.none;
-  DateTime? _customDeadline;
-
-  final List<int> _presetDurations = [15, 30, 60, 90];
-
-  // Fixed Block fields
-  late DateTime _fixedDate;
-  late TimeOfDay _fixedStartTime;
-  late TimeOfDay _fixedEndTime;
+  late int _selectedQuadrant;
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
+  TaskRepeatRule? _repeatRule;
+  String _reminderRule = 'ตรงเวลา';
 
   @override
   void initState() {
     super.initState();
+    _titleController = TextEditingController(
+      text:
+          widget.editTask?.title ??
+          widget.editBlock?.title ??
+          widget.initialTitle ??
+          '',
+    );
+    _noteController = TextEditingController(text: widget.editTask?.note ?? '');
 
-    final now = DateTime.now();
-    _fixedDate = DateTime(now.year, now.month, now.day);
-    final roundedMinute = ((now.minute / 5).ceil() * 5) % 60;
-    _fixedStartTime = TimeOfDay(hour: now.hour, minute: roundedMinute);
-    _fixedEndTime = TimeOfDay(hour: (now.hour + 1) % 24, minute: roundedMinute);
-
-    if (widget.editBlock != null) {
-      final b = widget.editBlock!;
-      _titleController = TextEditingController(text: b.title ?? '');
-      _projectController = TextEditingController();
-      _isFixed = b.isFixed;
-      final startLocal = b.startAt.toLocal();
-      final endLocal = b.endAt.toLocal();
-      _fixedDate = DateTime(startLocal.year, startLocal.month, startLocal.day);
-      _fixedStartTime = TimeOfDay(
-        hour: startLocal.hour,
-        minute: startLocal.minute,
-      );
-      _fixedEndTime = TimeOfDay(hour: endLocal.hour, minute: endLocal.minute);
-      _selectedDurationMin = b.durationMin;
-      _isCustomDuration = !_presetDurations.contains(b.durationMin);
-    } else if (widget.editTask != null) {
-      final t = widget.editTask!;
-      _titleController = TextEditingController(text: t.title);
-      _projectController = TextEditingController(text: t.projectName ?? '');
-      _isFixed = false;
-      _selectedDurationMin = t.durationMin;
-      _isCustomDuration = !_presetDurations.contains(t.durationMin);
-      if (t.deadlineAt != null) {
-        _customDeadline = t.deadlineAt!.toLocal();
-        _selectedDeadlinePreset = DeadlinePreset.custom;
+    if (widget.editTask != null) {
+      _selectedQuadrant = widget.editTask!.quadrant;
+      _selectedDate = widget.editTask!.deadlineAt?.toLocal();
+      if (_selectedDate != null) {
+        _selectedTime = TimeOfDay(
+          hour: _selectedDate!.hour,
+          minute: _selectedDate!.minute,
+        );
       }
+      _repeatRule = TaskRepeatRule.fromStored(widget.editTask!.repeatRule);
     } else {
-      _titleController = TextEditingController(text: widget.initialTitle ?? '');
-      _projectController = TextEditingController();
+      _selectedQuadrant = widget.initialQuadrant ?? 1;
+      final initialDate = widget.initialDate;
+      if (initialDate != null) {
+        _selectedTime = const TimeOfDay(hour: 22, minute: 0);
+        _selectedDate = DateTime(
+          initialDate.year,
+          initialDate.month,
+          initialDate.day,
+          _selectedTime!.hour,
+          _selectedTime!.minute,
+        );
+      }
     }
   }
 
   @override
   void dispose() {
     _titleController.dispose();
-    _projectController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
-  DateTime? _computeDeadline() {
+  Future<void> _pickDate() async {
     final now = DateTime.now();
-    switch (_selectedDeadlinePreset) {
-      case DeadlinePreset.none:
-        return null;
-      case DeadlinePreset.thisEvening:
-        return DateTime(now.year, now.month, now.day, 18, 0).toUtc();
-      case DeadlinePreset.tomorrow:
-        final tmr = now.add(const Duration(days: 1));
-        return DateTime(tmr.year, tmr.month, tmr.day, 18, 0).toUtc();
-      case DeadlinePreset.custom:
-        return _customDeadline?.toUtc();
-    }
-  }
-
-  Future<void> _pickCustomDuration() async {
-    final controller = TextEditingController(
-      text: _selectedDurationMin.toString(),
+    final pickedDate = await showIosDatePicker(
+      context,
+      initialDate: _selectedDate ?? now,
     );
-    final result = await showDialog<int>(
-      context: context,
-      builder: (ctx) {
-        final theme = ctx.mossTheme;
-        return AlertDialog(
-          backgroundColor: theme.background,
-          title: Text(
-            'กำหนดระยะเวลาเอง',
-            style: TextStyle(color: theme.onBackground, fontSize: 18),
-          ),
-          content: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            autofocus: true,
-            decoration: InputDecoration(
-              suffixText: 'นาที',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text('ยกเลิก', style: TextStyle(color: theme.textMuted)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final val = int.tryParse(controller.text.trim());
-                if (val != null && val > 0) {
-                  Navigator.pop(ctx, val);
-                }
-              },
-              child: const Text('ตกลง'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (result != null) {
-      setState(() {
-        _selectedDurationMin = result;
-        _isCustomDuration = !_presetDurations.contains(result);
-      });
-    }
-  }
-
-  Future<void> _pickCustomDeadline() async {
-    final now = DateTime.now();
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate: now,
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 60)),
-    );
-
     if (pickedDate == null || !mounted) return;
-
-    final pickedTime = await showTimePicker(
-      context: context,
-      initialTime: const TimeOfDay(hour: 18, minute: 0),
-    );
-
-    if (pickedTime == null || !mounted) return;
-
-    final combined = DateTime(
-      pickedDate.year,
-      pickedDate.month,
-      pickedDate.day,
-      pickedTime.hour,
-      pickedTime.minute,
-    );
-
     setState(() {
-      _customDeadline = combined;
-      _selectedDeadlinePreset = DeadlinePreset.custom;
+      _selectedDate = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        _selectedTime?.hour ?? 22,
+        _selectedTime?.minute ?? 0,
+      );
     });
   }
 
-  Future<void> _pickFixedDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _fixedDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 1)),
-      lastDate: DateTime.now().add(const Duration(days: 60)),
+  Future<void> _pickTime() async {
+    final pickedTime = await showIosTimePicker(
+      context,
+      initialTime: _selectedTime ?? TimeOfDay(hour: 22, minute: 0),
     );
-    if (picked != null) {
-      setState(() {
-        _fixedDate = picked;
-      });
+    if (pickedTime == null || !mounted) return;
+    setState(() {
+      _selectedTime = pickedTime;
+      final baseDate = _selectedDate ?? DateTime.now();
+      _selectedDate = DateTime(
+        baseDate.year,
+        baseDate.month,
+        baseDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+    });
+  }
+
+  Future<void> _pickRepeat() async {
+    MossHaptics.selection();
+    final options = [
+      'ไม่เคย',
+      ...TaskRepeatRule.values.map((rule) => rule.label),
+    ];
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _IosSelectorSheet(
+        title: 'ทำซ้ำ',
+        options: options,
+        selectedOption: _repeatRule?.label ?? 'ไม่เคย',
+      ),
+    );
+    if (picked != null && mounted) {
+      setState(() => _repeatRule = TaskRepeatRule.fromLabel(picked));
     }
   }
 
-  Future<void> _pickFixedStartTime() async {
-    final picked = await showTimePicker(
+  Future<void> _pickReminder() async {
+    MossHaptics.selection();
+    final options = [
+      'ไม่มี',
+      'ตรงเวลา',
+      '5 นาทีก่อน',
+      '15 นาทีก่อน',
+      '30 นาทีก่อน',
+      '1 ชั่วโมงก่อน',
+      '1 วันก่อน',
+    ];
+    final picked = await showModalBottomSheet<String>(
       context: context,
-      initialTime: _fixedStartTime,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _IosSelectorSheet(
+        title: 'การแจ้งเตือน',
+        options: options,
+        selectedOption: _reminderRule,
+      ),
     );
-    if (picked != null) {
-      setState(() {
-        _fixedStartTime = picked;
-      });
-    }
-  }
-
-  Future<void> _pickFixedEndTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _fixedEndTime,
-    );
-    if (picked != null) {
-      setState(() {
-        _fixedEndTime = picked;
-      });
+    if (picked != null && mounted) {
+      setState(() => _reminderRule = picked);
     }
   }
 
@@ -261,598 +200,473 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     final title = _titleController.text.trim();
     if (title.isEmpty) return;
 
-    final nowUtc = TimeUtils.nowUtc();
+    MossHaptics.success();
+    final now = TimeUtils.nowUtc();
+    final deadlineUtc = _selectedDate?.toUtc();
 
-    if (_isFixed) {
-      // Create or update Fixed Block
-      final startLocal = DateTime(
-        _fixedDate.year,
-        _fixedDate.month,
-        _fixedDate.day,
-        _fixedStartTime.hour,
-        _fixedStartTime.minute,
-      );
-      final endLocal = DateTime(
-        _fixedDate.year,
-        _fixedDate.month,
-        _fixedDate.day,
-        _fixedEndTime.hour,
-        _fixedEndTime.minute,
-      );
-
-      final fixedBlock = Block(
-        id: widget.editBlock?.id ?? _uuid.v4(),
-        kind: BlockKind.fixed,
-        taskId: widget.editBlock?.taskId,
-        title: title,
-        startAt: startLocal.toUtc(),
-        endAt: endLocal.toUtc(),
-        locked: true,
-        source: widget.editBlock?.source ?? 'local',
-        createdAt: widget.editBlock?.createdAt ?? nowUtc,
-        updatedAt: nowUtc,
-      );
-
-      Navigator.pop(context, fixedBlock);
-    } else {
-      // Create or update Task
-      final task = Task(
-        id: widget.editTask?.id ?? widget.editBlock?.taskId ?? _uuid.v4(),
-        title: title,
-        durationMin: _selectedDurationMin,
-        deadlineAt: _computeDeadline(),
-        priority: widget.editTask?.priority ?? 2,
-        projectName: () {
-          final value = _projectController.text.trim();
-          return value.isEmpty ? null : value;
-        }(),
-        status: widget.editTask?.status ?? TaskStatus.todo,
-        createdAt: widget.editTask?.createdAt ?? nowUtc,
-        updatedAt: nowUtc,
-      );
-
-      Navigator.pop(context, task);
+    if (widget.editBlock != null && widget.editTask == null) {
+      final block = widget.editBlock!;
+      Navigator.of(
+        context,
+      ).pop(block.copyWith(title: () => title, updatedAt: now));
+      return;
     }
+
+    final task = (widget.editTask != null)
+        ? widget.editTask!.copyWith(
+            title: title,
+            note: () => _noteController.text.trim().isEmpty
+                ? null
+                : _noteController.text.trim(),
+            quadrant: _selectedQuadrant,
+            priority: MatrixQuadrant.fromId(_selectedQuadrant).priority,
+            deadlineAt: () => deadlineUtc,
+            repeatRule: () => _repeatRule?.storageValue,
+            updatedAt: now,
+          )
+        : Task(
+            id: _uuid.v4(),
+            title: title,
+            note: _noteController.text.trim().isEmpty
+                ? null
+                : _noteController.text.trim(),
+            durationMin: 30,
+            quadrant: _selectedQuadrant,
+            priority: MatrixQuadrant.fromId(_selectedQuadrant).priority,
+            deadlineAt: deadlineUtc,
+            repeatRule: _repeatRule?.storageValue,
+            createdAt: now,
+            updatedAt: now,
+          );
+
+    Navigator.of(context).pop(task);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.mossTheme;
-    final isEditing = widget.editTask != null || widget.editBlock != null;
+    final mediaQuery = MediaQuery.of(context);
+    final quadrant = MatrixQuadrant.fromId(_selectedQuadrant);
 
     return Container(
+      height:
+          mediaQuery.size.height *
+          (mediaQuery.size.width > mediaQuery.size.height ? 0.96 : 0.9),
       decoration: BoxDecoration(
-        color: theme.background,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: theme.borderSubtle,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Header
-            Row(
+      child: Column(
+        children: [
+          // Compact editor header.
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                IconButton.filledTonal(
+                  tooltip: 'ปิดหน้าสร้างงาน',
+                  onPressed: () {
+                    MossHaptics.light();
+                    Navigator.of(context).pop();
+                  },
+                  icon: Icon(Icons.close_rounded),
+                ),
                 Text(
-                  isEditing
-                      ? 'แก้ไขข้อมูล'
-                      : (_isFixed ? 'เพิ่มนัดหมาย (ล็อกเวลา)' : 'เพิ่มงานใหม่'),
+                  widget.editTask != null ? 'แก้ไขงาน' : 'งานใหม่',
                   style: TextStyle(
-                    fontSize: 20,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: theme.onBackground,
                   ),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: Icon(Icons.close_rounded, color: theme.textMuted),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Type Segmented selector (Task vs Fixed Block)
-            Row(
-              children: [
-                Expanded(
-                  child: ChoiceChip(
-                    label: const Center(
-                      child: Text('งานทั่วไป (จัดตารางอัตโนมัติ)'),
-                    ),
-                    selected: !_isFixed,
-                    onSelected: (val) {
-                      if (val) setState(() => _isFixed = false);
-                    },
-                    selectedColor: theme.nowFill,
-                    backgroundColor: theme.cardBackground,
-                    labelStyle: TextStyle(
-                      fontSize: 13,
-                      fontWeight: !_isFixed
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                      color: !_isFixed
-                          ? theme.onBackground
-                          : theme.textSecondary,
-                    ),
-                    side: BorderSide(
-                      color: !_isFixed ? theme.nowBorder : theme.borderSubtle,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ChoiceChip(
-                    label: const Center(child: Text('นัดหมาย (กำหนดเวลาเอง)')),
-                    selected: _isFixed,
-                    onSelected: (val) {
-                      if (val) setState(() => _isFixed = true);
-                    },
-                    selectedColor: theme.nowFill,
-                    backgroundColor: theme.cardBackground,
-                    labelStyle: TextStyle(
-                      fontSize: 13,
-                      fontWeight: _isFixed
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                      color: _isFixed
-                          ? theme.onBackground
-                          : theme.textSecondary,
-                    ),
-                    side: BorderSide(
-                      color: _isFixed ? theme.nowBorder : theme.borderSubtle,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // 1. Title Input
-            Text(
-              _isFixed ? 'ชื่องาน / นัดหมาย' : 'ชื่องาน',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: theme.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: theme.cardBackground,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.borderSubtle),
-              ),
-              child: TextField(
-                controller: _titleController,
-                autofocus: true,
-                maxLength: 120,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: theme.onBackground,
-                  fontWeight: FontWeight.w500,
-                ),
-                decoration: InputDecoration(
-                  hintText: _isFixed
-                      ? 'เช่น ประชุมฝ่ายการตลาด, นัดหมอ...'
-                      : 'เช่น สรุปงานส่งลูกค้า, เขียนรายงาน...',
-                  hintStyle: TextStyle(fontSize: 15, color: theme.textMuted),
-                  counterText: '',
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            if (!_isFixed) ...[
-              Text(
-                'โปรเจกต์ (ถ้ามี)',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: theme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _projectController,
-                textInputAction: TextInputAction.next,
-                maxLength: 60,
-                decoration: const InputDecoration(
-                  hintText: 'เช่น เว็บไซต์ใหม่, งานลูกค้า',
-                  counterText: '',
-                  prefixIcon: Icon(Icons.folder_outlined),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
-
-            if (_isFixed) ...[
-              // Fixed Block Date and Time Pickers
-              Text(
-                'วันและเวลานัดหมาย',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: theme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: OutlinedButton.icon(
-                      onPressed: _pickFixedDate,
-                      icon: Icon(
-                        Icons.calendar_today_rounded,
-                        size: 16,
-                        color: theme.primary,
-                      ),
-                      label: Text(
-                        ThaiDateFormatter.formatFullDate(_fixedDate),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: theme.onBackground,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: theme.cardBackground,
-                        side: BorderSide(color: theme.borderSubtle),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                          horizontal: 8,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickFixedStartTime,
-                      icon: Icon(
-                        Icons.access_time_rounded,
-                        size: 16,
-                        color: theme.textSecondary,
-                      ),
-                      label: Text(
-                        'เริ่ม: ${_fixedStartTime.format(context)}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: theme.onBackground,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: theme.cardBackground,
-                        side: BorderSide(color: theme.borderSubtle),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickFixedEndTime,
-                      icon: Icon(
-                        Icons.access_time_filled_rounded,
-                        size: 16,
-                        color: theme.textSecondary,
-                      ),
-                      label: Text(
-                        'สิ้นสุด: ${_fixedEndTime.format(context)}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: theme.onBackground,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: theme.cardBackground,
-                        side: BorderSide(color: theme.borderSubtle),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ] else ...[
-              // Task Duration Chips
-              Text(
-                'ใช้เวลาประมาณ',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: theme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ..._presetDurations.map((duration) {
-                    final isSelected =
-                        !_isCustomDuration && _selectedDurationMin == duration;
-                    return ChoiceChip(
-                      label: Text('$duration นาที'),
-                      selected: isSelected,
-                      onSelected: (selected) {
-                        if (selected) {
-                          setState(() {
-                            _selectedDurationMin = duration;
-                            _isCustomDuration = false;
-                          });
-                        }
-                      },
-                      selectedColor: theme.nowFill,
-                      backgroundColor: theme.cardBackground,
-                      labelStyle: TextStyle(
-                        color: isSelected
-                            ? theme.onBackground
-                            : theme.textSecondary,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                        fontSize: 13,
-                      ),
-                      side: BorderSide(
-                        color: isSelected
-                            ? theme.nowBorder
-                            : theme.borderSubtle,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _titleController,
+                  builder: (context, value, child) {
+                    final hasTitle = value.text.trim().isNotEmpty;
+                    return IconButton.filled(
+                      key: ValueKey<bool>(hasTitle),
+                      tooltip: hasTitle ? 'บันทึกงาน' : 'กรอกชื่องานก่อนบันทึก',
+                      onPressed: hasTitle ? _submit : null,
+                      icon: Icon(Icons.check_rounded),
                     );
-                  }),
-                  ChoiceChip(
-                    label: Text(
-                      _isCustomDuration
-                          ? '$_selectedDurationMin นาที'
-                          : 'กำหนดเอง',
-                    ),
-                    selected: _isCustomDuration,
-                    onSelected: (_) => _pickCustomDuration(),
-                    selectedColor: theme.nowFill,
-                    backgroundColor: theme.cardBackground,
-                    labelStyle: TextStyle(
-                      color: _isCustomDuration
-                          ? theme.onBackground
-                          : theme.textSecondary,
-                      fontWeight: _isCustomDuration
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                      fontSize: 13,
-                    ),
-                    side: BorderSide(
-                      color: _isCustomDuration
-                          ? theme.nowBorder
-                          : theme.borderSubtle,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Task Deadline Chips
-              Text(
-                'กำหนดส่ง (ถ้ามี)',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: theme.textSecondary,
+                  },
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              ],
+            ),
+          ),
+          Divider(color: Theme.of(context).dividerColor, height: 1),
+
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Column(
                 children: [
-                  ChoiceChip(
-                    label: const Text('ไม่มีกำหนดส่ง'),
-                    selected: _selectedDeadlinePreset == DeadlinePreset.none,
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() {
-                          _selectedDeadlinePreset = DeadlinePreset.none;
-                        });
-                      }
-                    },
-                    selectedColor: theme.nowFill,
-                    backgroundColor: theme.cardBackground,
-                    labelStyle: TextStyle(
-                      color: _selectedDeadlinePreset == DeadlinePreset.none
-                          ? theme.onBackground
-                          : theme.textSecondary,
-                      fontWeight: _selectedDeadlinePreset == DeadlinePreset.none
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                      fontSize: 13,
+                  // Card 1: Title and Notes
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
                     ),
-                    side: BorderSide(
-                      color: _selectedDeadlinePreset == DeadlinePreset.none
-                          ? theme.nowBorder
-                          : theme.borderSubtle,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  ChoiceChip(
-                    label: const Text('เย็นนี้ (18:00)'),
-                    selected:
-                        _selectedDeadlinePreset == DeadlinePreset.thisEvening,
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() {
-                          _selectedDeadlinePreset = DeadlinePreset.thisEvening;
-                        });
-                      }
-                    },
-                    selectedColor: theme.nowFill,
-                    backgroundColor: theme.cardBackground,
-                    labelStyle: TextStyle(
-                      color:
-                          _selectedDeadlinePreset == DeadlinePreset.thisEvening
-                          ? theme.onBackground
-                          : theme.textSecondary,
-                      fontWeight:
-                          _selectedDeadlinePreset == DeadlinePreset.thisEvening
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                      fontSize: 13,
-                    ),
-                    side: BorderSide(
-                      color:
-                          _selectedDeadlinePreset == DeadlinePreset.thisEvening
-                          ? theme.nowBorder
-                          : theme.borderSubtle,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  ChoiceChip(
-                    label: const Text('พรุ่งนี้ (18:00)'),
-                    selected:
-                        _selectedDeadlinePreset == DeadlinePreset.tomorrow,
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() {
-                          _selectedDeadlinePreset = DeadlinePreset.tomorrow;
-                        });
-                      }
-                    },
-                    selectedColor: theme.nowFill,
-                    backgroundColor: theme.cardBackground,
-                    labelStyle: TextStyle(
-                      color: _selectedDeadlinePreset == DeadlinePreset.tomorrow
-                          ? theme.onBackground
-                          : theme.textSecondary,
-                      fontWeight:
-                          _selectedDeadlinePreset == DeadlinePreset.tomorrow
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                      fontSize: 13,
-                    ),
-                    side: BorderSide(
-                      color: _selectedDeadlinePreset == DeadlinePreset.tomorrow
-                          ? theme.nowBorder
-                          : theme.borderSubtle,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Semantics(
+                          label: 'ชื่องาน',
+                          textField: true,
+                          child: TextField(
+                            controller: _titleController,
+                            maxLength: InputLimits.taskTitle,
+                            buildCounter:
+                                (
+                                  _, {
+                                  required currentLength,
+                                  required isFocused,
+                                  maxLength,
+                                }) => null,
+                            autofocus: true,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'ชื่อ',
+                              hintStyle: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.64),
+                                fontSize: 16,
+                              ),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: 10,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Divider(
+                          color: Theme.of(context).dividerColor,
+                          height: 1,
+                        ),
+                        Semantics(
+                          label: 'โน้ตงาน',
+                          textField: true,
+                          child: TextField(
+                            controller: _noteController,
+                            maxLength: InputLimits.taskNote,
+                            buildCounter:
+                                (
+                                  _, {
+                                  required currentLength,
+                                  required isFocused,
+                                  maxLength,
+                                }) => null,
+                            minLines: 2,
+                            maxLines: 4,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
+                              fontSize: 14,
+                              height: 1.4,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'โน้ต',
+                              hintStyle: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.64),
+                                fontSize: 14,
+                              ),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: 10,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  ChoiceChip(
-                    label: Text(
-                      _selectedDeadlinePreset == DeadlinePreset.custom &&
-                              _customDeadline != null
-                          ? '${_customDeadline!.day}/${_customDeadline!.month} ${ThaiDateFormatter.formatTime(_customDeadline!)}'
-                          : 'เลือกวันเอง...',
-                    ),
-                    selected: _selectedDeadlinePreset == DeadlinePreset.custom,
-                    onSelected: (_) => _pickCustomDeadline(),
-                    selectedColor: theme.nowFill,
-                    backgroundColor: theme.cardBackground,
-                    labelStyle: TextStyle(
-                      color: _selectedDeadlinePreset == DeadlinePreset.custom
-                          ? theme.onBackground
-                          : theme.textSecondary,
-                      fontWeight:
-                          _selectedDeadlinePreset == DeadlinePreset.custom
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                      fontSize: 13,
-                    ),
-                    side: BorderSide(
-                      color: _selectedDeadlinePreset == DeadlinePreset.custom
-                          ? theme.nowBorder
-                          : theme.borderSubtle,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 28),
+                  SizedBox(height: 16),
 
-            // Submit Button
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  // Card 2: Date, Time, Repeat, Reminder matching Image 2 & 3
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: Column(
+                      children: [
+                        // Row 1: วันที่
+                        _CardOptionRow(
+                          icon: Icons.calendar_today_rounded,
+                          label: 'วันที่',
+                          trailing: GestureDetector(
+                            onTap: _pickDate,
+                            child: _PillValueBadge(
+                              text: _selectedDate == null
+                                  ? 'เพิ่มวันที่'
+                                  : '${_selectedDate!.day} ${ThaiDateFormatter.thaiShortMonthName(_selectedDate!.month)} ${_selectedDate!.year + 543}',
+                              hasValue: _selectedDate != null,
+                              onClear: () {
+                                setState(() {
+                                  _selectedDate = null;
+                                  _selectedTime = null;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                        Divider(
+                          color: Theme.of(context).dividerColor,
+                          height: 1,
+                        ),
+
+                        // Row 2: เวลา
+                        _CardOptionRow(
+                          icon: Icons.access_time_rounded,
+                          label: 'เวลา',
+                          trailing: GestureDetector(
+                            onTap: _pickTime,
+                            child: _PillValueBadge(
+                              text: _selectedTime == null
+                                  ? 'เพิ่มเวลา'
+                                  : '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}',
+                              hasValue: _selectedTime != null,
+                              onClear: () {
+                                setState(() {
+                                  _selectedTime = null;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                        Divider(
+                          color: Theme.of(context).dividerColor,
+                          height: 1,
+                        ),
+
+                        // Row 3: ทำซ้ำ
+                        _CardOptionRow(
+                          icon: Icons.repeat_rounded,
+                          label: 'ทำซ้ำ',
+                          trailing: GestureDetector(
+                            onTap: _pickRepeat,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _repeatRule?.label ?? 'ไม่เคย',
+                                  style: TextStyle(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.72),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                SizedBox(width: 4),
+                                Icon(
+                                  Icons.unfold_more_rounded,
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.64),
+                                  size: 18,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Divider(
+                          color: Theme.of(context).dividerColor,
+                          height: 1,
+                        ),
+
+                        // Row 4: การแจ้งเตือน
+                        _CardOptionRow(
+                          icon: Icons.notifications_none_rounded,
+                          label: 'การแจ้งเตือน',
+                          trailing: GestureDetector(
+                            onTap: _pickReminder,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _reminderRule,
+                                  style: TextStyle(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.72),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                SizedBox(width: 4),
+                                Icon(
+                                  Icons.unfold_more_rounded,
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.64),
+                                  size: 18,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                child: Text(
-                  isEditing
-                      ? 'บันทึกการแก้ไข'
-                      : (_isFixed
-                            ? 'บันทึกนัดหมาย (ล็อกเวลา)'
-                            : 'เพิ่มงานและจัดตาราง'),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                  SizedBox(height: 16),
+
+                  // The matrix is the single source of truth for urgency and
+                  // importance. Task.priority is derived from the selection.
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                    ),
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Matrix Header
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.grid_view_rounded,
+                                  size: 18,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
+                                ),
+                                SizedBox(width: 10),
+                                Text(
+                                  'เมทริกซ์',
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            AnimatedSwitcher(
+                              duration: Duration(milliseconds: 200),
+                              transitionBuilder: (child, animation) =>
+                                  FadeTransition(
+                                    opacity: animation,
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: Offset(0.1, 0),
+                                        end: Offset.zero,
+                                      ).animate(animation),
+                                      child: child,
+                                    ),
+                                  ),
+                              child: Text(
+                                quadrant.label,
+                                key: ValueKey<int>(_selectedQuadrant),
+                                style: TextStyle(
+                                  color: AppColors.quadrantFor(quadrant.id),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16),
+
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final columns = constraints.maxWidth < 520 ? 2 : 4;
+                            return GridView.count(
+                              shrinkWrap: true,
+                              physics: NeverScrollableScrollPhysics(),
+                              crossAxisCount: columns,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              mainAxisExtent: 96,
+                              children: [
+                                for (final item
+                                    in <
+                                      ({
+                                        String title,
+                                        int corner,
+                                        Color color,
+                                        int quadrant,
+                                      })
+                                    >[
+                                      (
+                                        title: 'สำคัญและเร่งด่วน',
+                                        corner: 0,
+                                        color: AppColors.quadrant1,
+                                        quadrant: 1,
+                                      ),
+                                      (
+                                        title: 'สำคัญ',
+                                        corner: 1,
+                                        color: AppColors.quadrant2,
+                                        quadrant: 2,
+                                      ),
+                                      (
+                                        title: 'เร่งด่วน',
+                                        corner: 2,
+                                        color: AppColors.quadrant3,
+                                        quadrant: 3,
+                                      ),
+                                      (
+                                        title: 'สักวันหนึ่ง',
+                                        corner: 3,
+                                        color: AppColors.quadrant4,
+                                        quadrant: 4,
+                                      ),
+                                    ])
+                                  _QuadrantBox(
+                                    title: item.title,
+                                    activeCorner: item.corner,
+                                    accentColor: item.color,
+                                    isSelected:
+                                        _selectedQuadrant == item.quadrant,
+                                    onTap: () {
+                                      MossHaptics.selection();
+                                      setState(
+                                        () => _selectedQuadrant = item.quadrant,
+                                      );
+                                    },
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  SizedBox(height: 24),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

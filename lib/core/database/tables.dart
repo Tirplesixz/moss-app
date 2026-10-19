@@ -7,6 +7,7 @@ class AppDatabaseTables {
   static const String tableSettings = 'settings';
   static const String tableNotifs = 'notifs';
   static const String tableEvents = 'events';
+  static const String tableLockScreenConfigs = 'lockscreen_configs';
 
   static const String createTasksTable =
       '''
@@ -17,6 +18,11 @@ class AppDatabaseTables {
       deadline_at TEXT,
       priority INTEGER NOT NULL DEFAULT 2,
       project_name TEXT,
+      checklist TEXT,
+      note TEXT,
+      quadrant INTEGER NOT NULL DEFAULT 1,
+      repeat_rule TEXT,
+      calendar_event_id TEXT,
       status TEXT NOT NULL DEFAULT 'todo',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -53,6 +59,8 @@ class AppDatabaseTables {
       timezone TEXT NOT NULL DEFAULT 'Asia/Bangkok',
       onboarding_complete INTEGER NOT NULL DEFAULT 0,
       paywall_interest_count INTEGER NOT NULL DEFAULT 0,
+      appearance_mode TEXT NOT NULL DEFAULT 'system',
+      save_completed_to_calendar INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL,
       deleted_at TEXT
     );
@@ -83,6 +91,48 @@ class AppDatabaseTables {
     );
   ''';
 
+  static const String createLockScreenConfigsTable =
+      '''
+    CREATE TABLE IF NOT EXISTS $tableLockScreenConfigs (
+      id TEXT PRIMARY KEY,
+      template_id TEXT NOT NULL,
+      gradient_start INTEGER NOT NULL,
+      gradient_end INTEGER NOT NULL,
+      show_clock INTEGER NOT NULL DEFAULT 1,
+      show_progress INTEGER NOT NULL DEFAULT 1,
+      show_tasks INTEGER NOT NULL DEFAULT 1,
+      show_calendar INTEGER NOT NULL DEFAULT 0,
+      auto_update INTEGER NOT NULL DEFAULT 0,
+      task_limit INTEGER NOT NULL DEFAULT 4,
+      module_order TEXT NOT NULL DEFAULT 'clock,progress,tasks,calendar',
+      vertical_offset REAL NOT NULL DEFAULT 0.0,
+      show_countdown INTEGER NOT NULL DEFAULT 0,
+      countdown_title TEXT NOT NULL DEFAULT 'วันสำคัญ',
+      countdown_date TEXT,
+      show_pinned_note INTEGER NOT NULL DEFAULT 0,
+      pinned_note_text TEXT NOT NULL DEFAULT '',
+      dim_past_events INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      last_rendered_at TEXT
+    );
+  ''';
+
+  static const String tableNotes = 'notes';
+
+  static const String createNotesTable =
+      '''
+    CREATE TABLE IF NOT EXISTS $tableNotes (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      color_value INTEGER NOT NULL DEFAULT 4294967295,
+      pinned INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      deleted_at TEXT
+    );
+  ''';
+
   static const List<String> createIndices = [
     'CREATE INDEX IF NOT EXISTS idx_tasks_status ON $tableTasks(status, deleted_at);',
     'CREATE INDEX IF NOT EXISTS idx_tasks_deadline ON $tableTasks(deadline_at);',
@@ -91,5 +141,6 @@ class AppDatabaseTables {
     'CREATE INDEX IF NOT EXISTS idx_blocks_task_id ON $tableBlocks(task_id);',
     'CREATE INDEX IF NOT EXISTS idx_notifs_fire_at ON $tableNotifs(fire_at, deleted_at);',
     'CREATE INDEX IF NOT EXISTS idx_events_time ON $tableEvents(occurred_at);',
+    'CREATE INDEX IF NOT EXISTS idx_notes_updated ON $tableNotes(pinned DESC, updated_at DESC, deleted_at);',
   ];
 }

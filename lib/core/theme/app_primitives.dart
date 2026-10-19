@@ -41,6 +41,9 @@ class MossPrimitives {
   static const orange500 = Color(0xFFD56D45);
   static const orange300 = Color(0xFFF09A73);
   static const orange900 = Color(0xFF4A2D22);
+  static const orange700 = Color(0xFFA8461F);
+  static const rose700 = Color(0xFFB5365A);
+  static const rose300 = Color(0xFFF08AAB);
   static const amber500 = Color(0xFFC98237);
   static const amber300 = Color(0xFFE6A85C);
   static const red500 = Color(0xFFD94C4C);
@@ -93,6 +96,14 @@ class MossTypeSizes {
   static const double titleLarge = 20;
   static const double heading = 24;
   static const double display = 32;
+}
+
+class MossBreakpoints {
+  MossBreakpoints._();
+
+  static const double compact = 600;
+  static const double expanded = 840;
+  static const double maxContentWidth = 1180;
 }
 
 class MossIconSizes {

@@ -78,6 +78,20 @@ class BlockRepository {
     );
   }
 
+  /// Undoes [softDeleteBlock].
+  Future<void> restoreBlock(String blockId) async {
+    final db = await _database.database;
+    await db.update(
+      AppDatabaseTables.tableBlocks,
+      {
+        'deleted_at': null,
+        'updated_at': TimeUtils.toUtcIsoString(TimeUtils.nowUtc()),
+      },
+      where: 'id = ?',
+      whereArgs: [blockId],
+    );
+  }
+
   Future<List<Block>> getActiveBlocksForTask(String taskId) async {
     final db = await _database.database;
     final results = await db.query(

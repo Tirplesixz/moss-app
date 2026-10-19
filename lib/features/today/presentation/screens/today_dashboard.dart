@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_primitives.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/moss_motion.dart';
+import '../../../../core/theme/moss_task_style.dart';
+import '../../../../core/utils/moss_haptics.dart';
 import '../../../../core/utils/thai_date_formatter.dart';
 import '../../../../core/widgets/moss_entrance.dart';
 import '../../../tasks/domain/block.dart';
 import '../../../tasks/domain/task.dart';
 import '../../domain/today_item.dart';
 import '../today_state.dart';
+import '../widgets/now_card.dart';
 
 enum CalendarRange { day, threeDays, month }
 
@@ -20,6 +23,10 @@ class TodayDashboard extends StatefulWidget {
     required this.onOpenSettings,
     required this.onOpenBlock,
     required this.onRetry,
+    required this.onCompleteNow,
+    required this.onPauseNow,
+    required this.onExtendNow,
+    required this.onFocusNow,
   });
 
   final TodayState state;
@@ -27,6 +34,10 @@ class TodayDashboard extends StatefulWidget {
   final VoidCallback onOpenSettings;
   final ValueChanged<TimelineBlockItem> onOpenBlock;
   final VoidCallback onRetry;
+  final VoidCallback onCompleteNow;
+  final VoidCallback onPauseNow;
+  final VoidCallback onExtendNow;
+  final VoidCallback onFocusNow;
 
   @override
   State<TodayDashboard> createState() => _TodayDashboardState();
@@ -86,6 +97,7 @@ class _TodayDashboardState extends State<TodayDashboard> {
                       _WeekStrip(
                         selectedDate: _selectedDate,
                         onSelected: (date) {
+                          MossHaptics.selection();
                           setState(() {
                             _selectedDate = date;
                             _range = CalendarRange.day;
@@ -113,11 +125,28 @@ class _TodayDashboardState extends State<TodayDashboard> {
                           ],
                           selected: {_range},
                           onSelectionChanged: (value) {
+                            MossHaptics.selection();
                             setState(() => _range = value.first);
                           },
                         ),
                       ),
                       const SizedBox(height: MossSpacing.x4),
+                      if (_range == CalendarRange.day &&
+                          _isToday(_selectedDate) &&
+                          widget.state.nowBlock != null) ...[
+                        NowCard(
+                          block: widget.state.nowBlock,
+                          task: widget.state.nowTask,
+                          progress: widget.state.nowProgress,
+                          remainingMinutes: widget.state.nowRemainingMinutes,
+                          isPaused: widget.state.isPaused,
+                          onComplete: widget.onCompleteNow,
+                          onPause: widget.onPauseNow,
+                          onExtend: widget.onExtendNow,
+                          onFocus: widget.onFocusNow,
+                        ),
+                        const SizedBox(height: MossSpacing.x4),
+                      ],
                       if (widget.state.isLoading)
                         LinearProgressIndicator(
                           minHeight: 2,
@@ -159,6 +188,7 @@ class _TodayDashboardState extends State<TodayDashboard> {
                             _selectedDate,
                           ),
                           tasksById: tasksById,
+                          doneCount: widget.state.doneItems.length,
                           onOpenBlock: widget.onOpenBlock,
                         ),
                         CalendarRange.threeDays => _ThreeDayView(
@@ -201,6 +231,13 @@ class _TodayDashboardState extends State<TodayDashboard> {
           local.day == date.day;
     }).toList()..sort((a, b) => a.startAt.compareTo(b.startAt));
     return result;
+  }
+
+  static bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 
   static String _dayKey(DateTime date) =>
@@ -362,12 +399,14 @@ class _DayView extends StatelessWidget {
     required this.date,
     required this.blocks,
     required this.tasksById,
+    required this.doneCount,
     required this.onOpenBlock,
   });
 
   final DateTime date;
   final List<Block> blocks;
   final Map<String, Task> tasksById;
+  final int doneCount;
   final ValueChanged<TimelineBlockItem> onOpenBlock;
 
   @override
@@ -378,7 +417,9 @@ class _DayView extends StatelessWidget {
         _DaySummary(taskCount: blocks.length, freeMinutes: freeMinutes),
         const SizedBox(height: MossSpacing.x4),
         if (blocks.isEmpty)
-          const _AgendaEmptyState()
+          (_TodayDashboardState._isToday(date) && doneCount > 0)
+              ? _AllDoneState(doneCount: doneCount)
+              : const _AgendaEmptyState()
         else
           _AgendaList(
             date: date,
@@ -548,19 +589,12 @@ class _AgendaCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.mossTheme;
     final components = context.mossComponents;
+    final projectColor = MossProjectColors.of(context, task?.projectName);
     final (surface, accent, tag) = block.isFixed
         ? (components.internalSurface, components.internalAccent, 'เวลาตายตัว')
         : task?.projectName?.trim().isNotEmpty == true
-        ? (
-            components.projectSurface,
-            components.projectAccent,
-            task!.projectName!,
-          )
-        : (
-            components.customerSurface,
-            components.customerAccent,
-            task?.priority == 3 ? 'สำคัญ' : 'งานทั่วไป',
-          );
+        ? (projectColor.surface, projectColor.accent, task!.projectName!)
+        : (components.customerSurface, components.customerAccent, 'งานทั่วไป');
     final title = block.title ?? task?.title ?? 'ไม่มีชื่อ';
 
     return Row(
@@ -647,6 +681,40 @@ class _AgendaCard extends StatelessWidget {
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(color: theme.textSecondary),
                             ),
+                            if (task != null &&
+                                (task!.priority != MossPriority.normal ||
+                                    task!.checklist.isNotEmpty)) ...[
+                              const SizedBox(height: MossSpacing.x2),
+                              Wrap(
+                                spacing: MossSpacing.x2,
+                                runSpacing: MossSpacing.x1,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  PriorityBadge(priority: task!.priority),
+                                  if (task!.checklist.isNotEmpty)
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.checklist_rounded,
+                                          size: MossIconSizes.sm,
+                                          color: theme.textSecondary,
+                                        ),
+                                        const SizedBox(width: MossSpacing.x1),
+                                        Text(
+                                          '${task!.checklistDone}/${task!.checklist.length}',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: theme.textSecondary,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -940,6 +1008,69 @@ class _AgendaEmptyState extends StatelessWidget {
             ).textTheme.bodyMedium?.copyWith(color: theme.textSecondary),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AllDoneState extends StatefulWidget {
+  const _AllDoneState({required this.doneCount});
+
+  final int doneCount;
+
+  @override
+  State<_AllDoneState> createState() => _AllDoneStateState();
+}
+
+class _AllDoneStateState extends State<_AllDoneState> {
+  @override
+  void initState() {
+    super.initState();
+    MossHaptics.success();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.mossTheme;
+    final components = context.mossComponents;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: MossMotion.duration(context, MossMotion.emphasis),
+      curve: MossMotion.enterCurve,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.scale(scale: 0.92 + 0.08 * t, child: child),
+      ),
+      child: Semantics(
+        container: true,
+        label: 'เคลียร์ครบทุกงานแล้ว ทำเสร็จสะสม ${widget.doneCount} รายการ',
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(MossSpacing.x8),
+          decoration: BoxDecoration(
+            color: components.fixedTaskSurface,
+            borderRadius: BorderRadius.circular(MossRadii.lg),
+            border: Border.all(color: components.fixedTaskBorder),
+          ),
+          child: Column(
+            children: [
+              Icon(Icons.celebration_rounded, color: theme.success, size: 48),
+              const SizedBox(height: MossSpacing.x3),
+              Text(
+                'เคลียร์ครบทุกงานแล้ว!',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: MossSpacing.x1),
+              Text(
+                'ทำเสร็จสะสม ${widget.doneCount} รายการ พักผ่อนได้เต็มที่',
+                textAlign: TextAlign.center,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: theme.textSecondary),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

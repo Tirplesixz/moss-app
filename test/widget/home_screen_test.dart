@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moss/core/notifications/notification_service.dart';
 import 'package:moss/core/providers/database_providers.dart';
 import 'package:moss/core/providers/notification_providers.dart';
-import 'package:moss/core/theme/app_theme.dart';
+import 'package:moss/features/today/presentation/today_controller.dart';
 import 'package:moss/features/today/presentation/screens/home_screen.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -42,105 +44,139 @@ class FakeNotificationClient implements INotificationClient {
 }
 
 void main() {
-  setUpAll(tz.initializeTimeZones);
-
-  testWidgets('HomeScreen renders adaptive navigation and empty agenda', (
-    tester,
-  ) async {
-    final database = await createTestDatabase();
-    final notificationService = NotificationService(
-      client: FakeNotificationClient(),
-    );
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(database),
-          notificationServiceProvider.overrideWithValue(notificationService),
-        ],
-        child: MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const HomeScreen(),
-        ),
-      ),
-    );
-    await settleDatabaseIo(tester);
-
-    expect(find.text('วันนี้'), findsWidgets);
-    expect(find.text('งานเข้า'), findsOneWidget);
-    expect(find.text('โปรเจกต์'), findsOneWidget);
-    expect(find.text('วันนี้ยังว่าง'), findsOneWidget);
-    await disposeTestDatabase(tester, database);
+  setUpAll(() {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    tz.initializeTimeZones();
   });
 
-  testWidgets('inbox quick add persists and renders the task', (tester) async {
-    final database = await createTestDatabase();
-    final notificationService = NotificationService(
-      client: FakeNotificationClient(),
-    );
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(database),
-          notificationServiceProvider.overrideWithValue(notificationService),
-        ],
-        child: MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: const HomeScreen(),
-        ),
-      ),
-    );
-    await settleDatabaseIo(tester);
-
-    await tester.tap(find.text('งานเข้า'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'ส่งสรุปให้ลูกค้า');
-    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
-    await settleDatabaseIo(tester);
-
-    expect(find.text('ส่งสรุปให้ลูกค้า'), findsOneWidget);
-    await disposeTestDatabase(tester, database);
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('com.moss.moss/calendar'),
+          (call) async {
+            if (call.method == 'checkAccess') return 'undetermined';
+            if (call.method == 'fetchEvents') return [];
+            return null;
+          },
+        );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('com.moss.moss/lockscreen'),
+          (call) async => {'action': 'applied'},
+        );
   });
 
-  testWidgets('compact layout handles large text and a worst-case task title', (
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('com.moss.moss/calendar'),
+          null,
+        );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('com.moss.moss/lockscreen'),
+          null,
+        );
+  });
+
+  testWidgets('HomeScreen renders 5 navigation tabs and greeting', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(320, 700));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final database = await createTestDatabase();
+    final database = await tester.runAsync(createTestDatabase);
     final notificationService = NotificationService(
       client: FakeNotificationClient(),
     );
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(database),
-          notificationServiceProvider.overrideWithValue(notificationService),
-        ],
-        child: MaterialApp(
-          theme: AppTheme.lightTheme,
-          builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: const TextScaler.linear(1.5)),
-            child: child!,
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(database!),
+            notificationServiceProvider.overrideWithValue(notificationService),
+            todayControllerProvider.overrideWith((ref) => TodayController(
+              taskRepository: ref.watch(taskRepositoryProvider),
+              blockRepository: ref.watch(blockRepositoryProvider),
+              settingsRepository: ref.watch(settingsRepositoryProvider),
+              notificationService: notificationService,
+              eventLogRepository: ref.watch(eventLogRepositoryProvider),
+              enableTicker: false,
+            )),
+          ],
+          child: const MediaQuery(
+            data: MediaQueryData(disableAnimations: true),
+            child: MaterialApp(home: HomeScreen()),
           ),
-          home: const HomeScreen(),
         ),
-      ),
-    );
-    await settleDatabaseIo(tester);
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pump();
 
-    await tester.tap(find.byIcon(Icons.format_list_bulleted_rounded));
-    await tester.pumpAndSettle();
-    const longTitle =
-        'Client follow-up — ทีมกรุงเทพฯ 🚀 '
-        'averyveryveryveryveryverylongunbreakableidentifier@example.com';
-    await tester.enterText(find.byType(TextField), longTitle);
-    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
-    await settleDatabaseIo(tester);
+    expect(find.text('สวัสดี!'), findsOneWidget);
+    expect(find.text('งาน'), findsWidgets);
+    expect(find.text('ปฏิทิน'), findsWidgets);
+    expect(find.text('ล็อกสกรีน'), findsWidgets);
+    expect(find.text('โน้ต'), findsWidgets);
+    expect(find.text('ตั้งค่า'), findsWidgets);
 
-    expect(find.text(longTitle), findsOneWidget);
-    expect(tester.takeException(), isNull);
-    await disposeTestDatabase(tester, database);
+    await disposeTestDatabase(tester, database!);
   });
+
+  testWidgets(
+    'switching tabs navigates to Calendar, Lock, Notes, and Settings',
+    (tester) async {
+      final database = await tester.runAsync(createTestDatabase);
+      final notificationService = NotificationService(
+        client: FakeNotificationClient(),
+      );
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              appDatabaseProvider.overrideWithValue(database!),
+              notificationServiceProvider.overrideWithValue(
+                notificationService,
+              ),
+              todayControllerProvider.overrideWith((ref) => TodayController(
+                taskRepository: ref.watch(taskRepositoryProvider),
+                blockRepository: ref.watch(blockRepositoryProvider),
+                settingsRepository: ref.watch(settingsRepositoryProvider),
+                notificationService: notificationService,
+                eventLogRepository: ref.watch(eventLogRepositoryProvider),
+                enableTicker: false,
+              )),
+            ],
+            child: const MediaQuery(
+              data: MediaQueryData(disableAnimations: true),
+              child: MaterialApp(home: HomeScreen()),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      await tester.pump();
+
+      // Switch to Calendar tab
+      await tester.tap(find.text('ปฏิทิน').last);
+      await settleDatabaseIo(tester);
+      expect(find.text('0 รายการ'), findsOneWidget);
+
+      // Switch to Lock tab
+      await tester.tap(find.text('ล็อกสกรีน').last);
+      await settleDatabaseIo(tester);
+      expect(find.text('ล็อกสกรีน'), findsWidgets);
+
+      // Switch to Notes tab
+      await tester.tap(find.text('โน้ต').last);
+      await settleDatabaseIo(tester);
+      expect(find.text('เก็บไอเดียแยกจากงานที่ต้องลงมือทำ'), findsOneWidget);
+
+      // Switch to Settings tab
+      await tester.tap(find.text('ตั้งค่า').last);
+      await settleDatabaseIo(tester);
+      expect(find.text('การตั้งค่า'), findsOneWidget);
+
+      await disposeTestDatabase(tester, database!);
+    },
+  );
 }

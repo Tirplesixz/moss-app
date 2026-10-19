@@ -219,8 +219,13 @@ class NotificationService {
           channelDescription: channelDescription,
           importance: Importance.high,
           priority: Priority.high,
+          sound: RawResourceAndroidNotificationSound('notification'),
+          playSound: true,
         );
-        const iosDetails = DarwinNotificationDetails();
+        const iosDetails = DarwinNotificationDetails(
+          sound: 'notification.mp3',
+          presentSound: true,
+        );
         const details = NotificationDetails(
           android: androidDetails,
           iOS: iosDetails,
@@ -274,8 +279,13 @@ class NotificationService {
             channelDescription: channelDescription,
             importance: Importance.high,
             priority: Priority.high,
+            sound: RawResourceAndroidNotificationSound('notification'),
+            playSound: true,
           );
-          const iosDetails = DarwinNotificationDetails();
+          const iosDetails = DarwinNotificationDetails(
+            sound: 'notification.mp3',
+            presentSound: true,
+          );
           const details = NotificationDetails(
             android: androidDetails,
             iOS: iosDetails,

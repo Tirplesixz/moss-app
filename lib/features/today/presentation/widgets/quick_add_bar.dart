@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_primitives.dart';
 import '../../../../core/theme/moss_motion.dart';
+import '../../../../core/utils/moss_haptics.dart';
+import '../../../../core/validation/input_limits.dart';
 
 /// Bottom quick-add bar as specified in PLAN.md Section 7.1.
 class QuickAddBar extends StatefulWidget {
@@ -27,6 +29,7 @@ class _QuickAddBarState extends State<QuickAddBar> {
     if (_isSubmitting) return;
     final text = _controller.text.trim();
     if (text.isNotEmpty) {
+      MossHaptics.light();
       _focusNode.unfocus();
       setState(() => _isSubmitting = true);
       try {
@@ -36,11 +39,13 @@ class _QuickAddBarState extends State<QuickAddBar> {
         if (mounted) setState(() => _isSubmitting = false);
       }
     } else {
+      MossHaptics.selection();
       widget.onOpenManualForm?.call(null);
     }
   }
 
   void _handleManualOpen() {
+    MossHaptics.selection();
     final text = _controller.text.trim();
     widget.onOpenManualForm?.call(text.isNotEmpty ? text : null);
   }
@@ -101,6 +106,14 @@ class _QuickAddBarState extends State<QuickAddBar> {
                         Expanded(
                           child: TextField(
                             controller: _controller,
+                            maxLength: InputLimits.taskTitle,
+                            buildCounter:
+                                (
+                                  _, {
+                                  required currentLength,
+                                  required isFocused,
+                                  maxLength,
+                                }) => null,
                             focusNode: _focusNode,
                             enabled: !_isSubmitting,
                             textInputAction: TextInputAction.done,

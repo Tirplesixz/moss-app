@@ -18,6 +18,9 @@ class SettingsRepository {
       timezone: row['timezone'] as String? ?? 'Asia/Bangkok',
       onboardingComplete: (row['onboarding_complete'] as int? ?? 0) == 1,
       paywallInterestCount: row['paywall_interest_count'] as int? ?? 0,
+      appearanceMode: row['appearance_mode'] as String? ?? 'system',
+      saveCompletedToCalendar:
+          (row['save_completed_to_calendar'] as int? ?? 0) == 1,
       updatedAt: TimeUtils.parseUtc(row['updated_at'] as String),
       deletedAt: row['deleted_at'] != null
           ? TimeUtils.parseUtc(row['deleted_at'] as String)
@@ -34,6 +37,8 @@ class SettingsRepository {
       'timezone': settings.timezone,
       'onboarding_complete': settings.onboardingComplete ? 1 : 0,
       'paywall_interest_count': settings.paywallInterestCount,
+      'appearance_mode': settings.appearanceMode,
+      'save_completed_to_calendar': settings.saveCompletedToCalendar ? 1 : 0,
       'updated_at': TimeUtils.toUtcIsoString(settings.updatedAt),
       'deleted_at': settings.deletedAt != null
           ? TimeUtils.toUtcIsoString(settings.deletedAt!)

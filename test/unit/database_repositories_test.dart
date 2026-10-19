@@ -252,13 +252,22 @@ void main() {
         expect(settings.workdayStart, '09:00');
         expect(settings.workdayEnd, '18:00');
         expect(settings.bufferMin, 5);
+        expect(settings.appearanceMode, 'system');
+        expect(settings.saveCompletedToCalendar, isFalse);
 
-        final updated = settings.copyWith(workdayStart: '08:30', bufferMin: 10);
+        final updated = settings.copyWith(
+          workdayStart: '08:30',
+          bufferMin: 10,
+          appearanceMode: 'dark',
+          saveCompletedToCalendar: true,
+        );
         await settingsRepo.updateSettings(updated);
 
         final reFetched = await settingsRepo.getSettings();
         expect(reFetched.workdayStart, '08:30');
         expect(reFetched.bufferMin, 10);
+        expect(reFetched.appearanceMode, 'dark');
+        expect(reFetched.saveCompletedToCalendar, isTrue);
       },
     );
   });

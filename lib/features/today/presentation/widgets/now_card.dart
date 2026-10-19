@@ -15,6 +15,9 @@ class NowCard extends StatelessWidget {
   final bool isPaused;
   final VoidCallback onComplete;
   final VoidCallback onPause;
+  final VoidCallback? onExtend;
+  final VoidCallback? onFocus;
+  final int extendMinutes;
 
   const NowCard({
     super.key,
@@ -25,6 +28,9 @@ class NowCard extends StatelessWidget {
     this.isPaused = false,
     required this.onComplete,
     required this.onPause,
+    this.onExtend,
+    this.onFocus,
+    this.extendMinutes = 15,
   });
 
   @override
@@ -158,61 +164,97 @@ class NowCard extends StatelessWidget {
           ),
           const SizedBox(height: MossSpacing.x4),
 
-          // Secondary Action Buttons
+          // Actions
           LayoutBuilder(
             builder: (context, constraints) {
               final stackActions =
                   constraints.maxWidth < 320 ||
                   MediaQuery.textScalerOf(context).scale(1) > 1.35;
-              final completeButton = OutlinedButton.icon(
+              final completeButton = FilledButton.icon(
                 onPressed: onComplete,
-                icon: Icon(
-                  Icons.check_rounded,
-                  size: MossIconSizes.md,
-                  color: theme.primary,
-                ),
+                icon: const Icon(Icons.check_rounded, size: MossIconSizes.md),
                 label: const Text('เสร็จแล้ว'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: theme.primary,
-                  backgroundColor: theme.surface,
-                  side: BorderSide(color: components.activeTaskBorder),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                  backgroundColor: theme.primary,
+                  foregroundColor: theme.onPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(MossRadii.md),
                   ),
                 ),
               );
-              final pauseButton = OutlinedButton.icon(
+              OutlinedButton secondary({
+                required VoidCallback onPressed,
+                required IconData icon,
+                required String label,
+              }) {
+                return OutlinedButton.icon(
+                  onPressed: onPressed,
+                  icon: Icon(icon, size: MossIconSizes.md),
+                  label: Text(label),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.textSecondary,
+                    backgroundColor: theme.surface,
+                    side: BorderSide(color: theme.borderSubtle),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(MossRadii.md),
+                    ),
+                  ),
+                );
+              }
+
+              final pauseButton = secondary(
                 onPressed: onPause,
-                icon: Icon(
-                  isPaused ? Icons.play_arrow_rounded : Icons.coffee_rounded,
-                  size: MossIconSizes.md,
-                  color: theme.textSecondary,
-                ),
-                label: Text(isPaused ? 'ทำต่อ' : 'พัก'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: theme.textSecondary,
-                  backgroundColor: theme.surface,
-                  side: BorderSide(color: theme.borderSubtle),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(MossRadii.md),
-                  ),
-                ),
+                icon: isPaused
+                    ? Icons.play_arrow_rounded
+                    : Icons.coffee_rounded,
+                label: isPaused ? 'ทำต่อ' : 'พัก',
               );
+              final extendButton = onExtend == null
+                  ? null
+                  : secondary(
+                      onPressed: onExtend!,
+                      icon: Icons.more_time_rounded,
+                      label: '+$extendMinutes นาที',
+                    );
+              final focusButton = onFocus == null
+                  ? null
+                  : secondary(
+                      onPressed: onFocus!,
+                      icon: Icons.center_focus_strong_rounded,
+                      label: 'โฟกัส',
+                    );
+              final secondaryButtons = [
+                pauseButton,
+                ?extendButton,
+                ?focusButton,
+              ];
+
               if (stackActions) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     completeButton,
-                    const SizedBox(height: MossSpacing.x2),
-                    pauseButton,
+                    for (final button in secondaryButtons) ...[
+                      const SizedBox(height: MossSpacing.x2),
+                      button,
+                    ],
                   ],
                 );
               }
-              return Row(
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(child: completeButton),
-                  const SizedBox(width: MossSpacing.x2),
-                  Expanded(child: pauseButton),
+                  completeButton,
+                  const SizedBox(height: MossSpacing.x2),
+                  Row(
+                    children: [
+                      for (var i = 0; i < secondaryButtons.length; i++) ...[
+                        if (i > 0) const SizedBox(width: MossSpacing.x2),
+                        Expanded(child: secondaryButtons[i]),
+                      ],
+                    ],
+                  ),
                 ],
               );
             },

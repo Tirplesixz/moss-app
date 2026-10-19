@@ -3,10 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_primitives.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/moss_task_style.dart';
+import '../../../../core/utils/moss_haptics.dart';
 import '../../../../core/utils/thai_date_formatter.dart';
+import '../../../../core/widgets/undo_snackbar.dart';
 import '../../../today/presentation/today_controller.dart';
 import '../../domain/block.dart';
 import '../../domain/task.dart';
+import '../widgets/pomodoro_timer_sheet.dart';
 import 'add_task_screen.dart';
 
 enum _TaskMenuAction { edit, delete }
@@ -28,26 +32,35 @@ class TaskDetailScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('ลบงานนี้?'),
+        title: Text('ลบงานนี้?'),
         content: Text('“${task.title}” จะถูกนำออกจากตารางด้วย'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('ยกเลิก'),
+            child: Text('ยกเลิก'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(
               backgroundColor: context.mossTheme.error,
             ),
-            child: const Text('ลบงาน'),
+            child: Text('ลบงาน'),
           ),
         ],
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    await ref.read(todayControllerProvider.notifier).deleteTask(task);
-    if (context.mounted) Navigator.pop(context);
+    MossHaptics.heavy();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final controller = ref.read(todayControllerProvider.notifier);
+    await controller.deleteTask(task);
+    showUndoSnackBar(
+      messenger,
+      message: 'ลบแล้ว: ${task.title}',
+      onUndo: controller.undoLastAction,
+    );
+    navigator.pop();
   }
 
   @override
@@ -62,7 +75,7 @@ class TaskDetailScreen extends ConsumerWidget {
     if (task == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const Center(child: Text('ไม่พบงานนี้แล้ว')),
+        body: Center(child: Text('ไม่พบงานนี้แล้ว')),
       );
     }
 
@@ -76,7 +89,7 @@ class TaskDetailScreen extends ConsumerWidget {
       backgroundColor: theme.background,
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('รายละเอียดงาน'),
+        title: Text('รายละเอียดงาน'),
         actions: [
           PopupMenuButton<_TaskMenuAction>(
             tooltip: 'ตัวเลือกเพิ่มเติม',
@@ -90,7 +103,7 @@ class TaskDetailScreen extends ConsumerWidget {
                   break;
               }
             },
-            itemBuilder: (_) => const [
+            itemBuilder: (_) => [
               PopupMenuItem(
                 value: _TaskMenuAction.edit,
                 child: ListTile(
@@ -115,12 +128,12 @@ class TaskDetailScreen extends ConsumerWidget {
         top: false,
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
+            constraints: BoxConstraints(maxWidth: 720),
             child: Column(
               children: [
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(
+                    padding: EdgeInsets.fromLTRB(
                       MossSpacing.x4,
                       MossSpacing.x5,
                       MossSpacing.x4,
@@ -129,46 +142,184 @@ class TaskDetailScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          task.title,
-                          style: Theme.of(context).textTheme.displaySmall,
+                        Hero(
+                          tag: 'task_${task.id}',
+                          child: Material(
+                            color: Colors.transparent,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  task.title,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.displaySmall,
+                                ),
+                                if (task.projectName?.trim().isNotEmpty ==
+                                    true) ...[
+                                  SizedBox(height: MossSpacing.x3),
+                                  _ProjectBadge(name: task.projectName!),
+                                ],
+                              ],
+                            ),
+                          ),
                         ),
-                        if (task.projectName?.trim().isNotEmpty == true) ...[
-                          const SizedBox(height: MossSpacing.x3),
-                          _ProjectBadge(name: task.projectName!),
-                        ],
-                        const SizedBox(height: MossSpacing.x5),
+                        SizedBox(height: MossSpacing.x5),
                         _DetailsCard(task: task),
-                        const SizedBox(height: MossSpacing.x6),
+                        if (!isDone) ...[
+                          SizedBox(height: MossSpacing.x4),
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Color(0xFF2C1B35), Color(0xFF1E2330)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Color(0xFFE55745).withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () {
+                                  MossHaptics.selection();
+                                  PomodoroTimerSheet.show(
+                                    context,
+                                    task: task,
+                                    onTaskComplete: (t) => ref
+                                        .read(todayControllerProvider.notifier)
+                                        .completeTask(t),
+                                  );
+                                },
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 14,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Color(
+                                            0xFFE55745,
+                                          ).withValues(alpha: 0.2),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Text(
+                                          '🍅',
+                                          style: TextStyle(fontSize: 18),
+                                        ),
+                                      ),
+                                      SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'เริ่มโหมดโฟกัส (Pomodoro)',
+                                              style: TextStyle(
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurface,
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            SizedBox(height: 2),
+                                            Text(
+                                              'จับเวลา 25 นาที โฟกัสทำงานนี้ให้เสร็จ',
+                                              style: TextStyle(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withValues(alpha: 0.72),
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.arrow_forward_ios_rounded,
+                                        size: 14,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.72),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (task.checklist.isNotEmpty) ...[
+                          SizedBox(height: MossSpacing.x6),
+                          _ChecklistSection(
+                            task: task,
+                            enabled: !isDone,
+                            onChanged: (items) => ref
+                                .read(todayControllerProvider.notifier)
+                                .updateChecklist(task, items),
+                          ),
+                        ],
+                        SizedBox(height: MossSpacing.x6),
                         Text(
                           'จัดเวลา',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
-                        const SizedBox(height: MossSpacing.x3),
+                        SizedBox(height: MossSpacing.x3),
                         _ScheduleCard(block: scheduledBlock),
-                        if (isDone) ...[
-                          const SizedBox(height: MossSpacing.x5),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(MossSpacing.x4),
-                            decoration: BoxDecoration(
-                              color: context.mossComponents.internalSurface,
-                              borderRadius: BorderRadius.circular(MossRadii.lg),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.check_circle_rounded,
-                                  color: theme.success,
+                        AnimatedSwitcher(
+                          duration: Duration(milliseconds: 250),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(
+                                opacity: animation,
+                                child: SizeTransition(
+                                  sizeFactor: animation,
+                                  child: child,
                                 ),
-                                const SizedBox(width: MossSpacing.x3),
-                                const Expanded(
-                                  child: Text('งานนี้ทำเสร็จแล้ว'),
+                              ),
+                          child: isDone
+                              ? Container(
+                                  key: ValueKey('done_banner'),
+                                  margin: EdgeInsets.only(top: MossSpacing.x5),
+                                  width: double.infinity,
+                                  padding: EdgeInsets.all(MossSpacing.x4),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        context.mossComponents.internalSurface,
+                                    borderRadius: BorderRadius.circular(
+                                      MossRadii.lg,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle_rounded,
+                                        color: theme.success,
+                                      ),
+                                      SizedBox(width: MossSpacing.x3),
+                                      Expanded(
+                                        child: Text('งานนี้ทำเสร็จแล้ว'),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : SizedBox.shrink(
+                                  key: ValueKey('empty_done_banner'),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ],
+                        ),
                       ],
                     ),
                   ),
@@ -181,25 +332,34 @@ class TaskDetailScreen extends ConsumerWidget {
                     ),
                     child: SafeArea(
                       top: false,
-                      minimum: const EdgeInsets.all(MossSpacing.x4),
+                      minimum: EdgeInsets.all(MossSpacing.x4),
                       child: Row(
                         children: [
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () async {
-                                await ref
-                                    .read(todayControllerProvider.notifier)
-                                    .completeTask(task);
-                                if (context.mounted) Navigator.pop(context);
+                                MossHaptics.success();
+                                final messenger = ScaffoldMessenger.of(context);
+                                final navigator = Navigator.of(context);
+                                final controller = ref.read(
+                                  todayControllerProvider.notifier,
+                                );
+                                await controller.completeTask(task);
+                                showUndoSnackBar(
+                                  messenger,
+                                  message: 'ทำเสร็จแล้ว: ${task.title}',
+                                  onUndo: controller.undoLastAction,
+                                );
+                                navigator.pop();
                               },
-                              child: const Text('ทำเสร็จแล้ว'),
+                              child: Text('ทำเสร็จแล้ว'),
                             ),
                           ),
-                          const SizedBox(width: MossSpacing.x2),
+                          SizedBox(width: MossSpacing.x2),
                           Expanded(
                             child: ElevatedButton(
                               onPressed: () => _edit(context, ref, task),
-                              child: const Text('แก้ไข'),
+                              child: Text('แก้ไข'),
                             ),
                           ),
                         ],
@@ -222,15 +382,15 @@ class _ProjectBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final components = context.mossComponents;
+    final pc = MossProjectColors.of(context, name);
     return Container(
-      constraints: const BoxConstraints(maxWidth: 240),
-      padding: const EdgeInsets.symmetric(
+      constraints: BoxConstraints(maxWidth: 240),
+      padding: EdgeInsets.symmetric(
         horizontal: MossSpacing.x3,
         vertical: MossSpacing.x2,
       ),
       decoration: BoxDecoration(
-        color: components.projectSurface,
+        color: pc.surface,
         borderRadius: BorderRadius.circular(MossRadii.md),
       ),
       child: Text(
@@ -239,7 +399,7 @@ class _ProjectBadge extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: Theme.of(
           context,
-        ).textTheme.labelLarge?.copyWith(color: components.projectAccent),
+        ).textTheme.labelLarge?.copyWith(color: pc.accent),
       ),
     );
   }
@@ -268,13 +428,13 @@ class _DetailsCard extends StatelessWidget {
                 ? 'ไม่มีกำหนดส่ง'
                 : _formatDate(task.deadlineAt!.toLocal()),
           ),
-          const Divider(),
+          Divider(),
           _DetailRow(
             icon: Icons.schedule_outlined,
             label: 'เวลาที่ใช้',
             value: '${task.durationMin} นาที',
           ),
-          const Divider(),
+          Divider(),
           _DetailRow(
             icon: Icons.flag_outlined,
             label: 'ความสำคัญ',
@@ -311,14 +471,14 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.mossTheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: MossSpacing.x4,
         vertical: MossSpacing.x3,
       ),
       child: Row(
         children: [
           Icon(icon, color: theme.textMuted, size: MossIconSizes.md),
-          const SizedBox(width: MossSpacing.x3),
+          SizedBox(width: MossSpacing.x3),
           Expanded(
             child: Text(
               label,
@@ -327,7 +487,7 @@ class _DetailRow extends StatelessWidget {
               ).textTheme.bodyMedium?.copyWith(color: theme.textSecondary),
             ),
           ),
-          const SizedBox(width: MossSpacing.x3),
+          SizedBox(width: MossSpacing.x3),
           Flexible(
             child: Text(
               value,
@@ -337,7 +497,7 @@ class _DetailRow extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: MossSpacing.x1),
+          SizedBox(width: MossSpacing.x1),
           Icon(
             Icons.chevron_right_rounded,
             color: theme.textMuted,
@@ -360,7 +520,7 @@ class _ScheduleCard extends StatelessWidget {
     final components = context.mossComponents;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(MossSpacing.x4),
+      padding: EdgeInsets.all(MossSpacing.x4),
       decoration: BoxDecoration(
         color: block == null ? theme.surface : components.projectSurface,
         borderRadius: BorderRadius.circular(MossRadii.lg),
@@ -374,7 +534,7 @@ class _ScheduleCard extends StatelessWidget {
             block == null ? Icons.event_busy_outlined : Icons.schedule_rounded,
             color: block == null ? theme.textMuted : components.projectAccent,
           ),
-          const SizedBox(width: MossSpacing.x3),
+          SizedBox(width: MossSpacing.x3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -388,7 +548,7 @@ class _ScheduleCard extends StatelessWidget {
                         ),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: MossSpacing.x1),
+                SizedBox(height: MossSpacing.x1),
                 Text(
                   block == null
                       ? 'กดจัดลงตารางจากหน้างานเข้า'
@@ -411,7 +571,92 @@ class _ScheduleCard extends StatelessWidget {
     final today = DateTime(now.year, now.month, now.day);
     final target = DateTime(date.year, date.month, date.day);
     if (target == today) return 'วันนี้';
-    if (target == today.add(const Duration(days: 1))) return 'พรุ่งนี้';
+    if (target == today.add(Duration(days: 1))) return 'พรุ่งนี้';
     return '${date.day}/${date.month}/${date.year + 543}';
+  }
+}
+
+class _ChecklistSection extends StatelessWidget {
+  const _ChecklistSection({
+    required this.task,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final Task task;
+  final bool enabled;
+  final void Function(List<ChecklistItem> items) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.mossTheme;
+    final total = task.checklist.length;
+    final done = task.checklistDone;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'รายการย่อย',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            Text(
+              '$done/$total',
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(color: theme.textSecondary),
+            ),
+          ],
+        ),
+        SizedBox(height: MossSpacing.x2),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(MossRadii.full),
+          child: LinearProgressIndicator(
+            value: total == 0 ? 0 : done / total,
+            minHeight: 6,
+            backgroundColor: theme.surfaceMuted,
+            color: theme.success,
+          ),
+        ),
+        SizedBox(height: MossSpacing.x3),
+        Container(
+          decoration: BoxDecoration(
+            color: theme.surface,
+            borderRadius: BorderRadius.circular(MossRadii.lg),
+            border: Border.all(color: theme.borderSubtle),
+          ),
+          child: Column(
+            children: [
+              for (final item in task.checklist)
+                CheckboxListTile(
+                  value: item.done,
+                  onChanged: enabled
+                      ? (value) {
+                          MossHaptics.selection();
+                          onChanged([
+                            for (final c in task.checklist)
+                              c.id == item.id
+                                  ? c.copyWith(done: value ?? false)
+                                  : c,
+                          ]);
+                        }
+                      : null,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(
+                    item.title,
+                    style: TextStyle(
+                      decoration: item.done ? TextDecoration.lineThrough : null,
+                      color: item.done ? theme.textMuted : theme.onBackground,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

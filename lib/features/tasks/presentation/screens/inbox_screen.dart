@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_primitives.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/moss_task_style.dart';
+import '../../../../core/utils/moss_haptics.dart';
 import '../../../../core/widgets/moss_entrance.dart';
+import '../../../../core/validation/input_limits.dart';
 import '../../domain/task.dart';
 
 enum InboxFilter { all, unscheduled }
@@ -38,12 +41,27 @@ class _InboxScreenState extends State<InboxScreen> {
   final _focusNode = FocusNode();
   InboxFilter _filter = InboxFilter.all;
   bool _submitting = false;
+  final _searchController = TextEditingController();
+  bool _searching = false;
+  String _query = '';
 
   @override
   void dispose() {
     _controller.dispose();
+    _searchController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _toggleSearch() {
+    MossHaptics.selection();
+    setState(() {
+      _searching = !_searching;
+      if (!_searching) {
+        _searchController.clear();
+        _query = '';
+      }
+    });
   }
 
   Future<void> _submit() async {
@@ -65,10 +83,20 @@ class _InboxScreenState extends State<InboxScreen> {
     final todoTasks = widget.tasks
         .where((task) => task.status == TaskStatus.todo)
         .toList();
-    final visibleTasks = _filter == InboxFilter.all
+    final filtered = _filter == InboxFilter.all
         ? todoTasks
         : todoTasks
               .where((task) => widget.unscheduledTaskIds.contains(task.id))
+              .toList();
+    final q = _query.trim().toLowerCase();
+    final visibleTasks = q.isEmpty
+        ? filtered
+        : filtered
+              .where(
+                (t) =>
+                    t.title.toLowerCase().contains(q) ||
+                    (t.projectName?.toLowerCase().contains(q) ?? false),
+              )
               .toList();
 
     return Scaffold(
@@ -120,6 +148,17 @@ class _InboxScreenState extends State<InboxScreen> {
                                     ],
                                   ),
                                 ),
+                                IconButton(
+                                  tooltip: _searching
+                                      ? 'ปิดการค้นหา'
+                                      : 'ค้นหางาน',
+                                  onPressed: _toggleSearch,
+                                  icon: Icon(
+                                    _searching
+                                        ? Icons.search_off_rounded
+                                        : Icons.search_rounded,
+                                  ),
+                                ),
                                 IconButton.filledTonal(
                                   tooltip: 'เพิ่มงานแบบละเอียด',
                                   onPressed: widget.onAddTask,
@@ -127,12 +166,45 @@ class _InboxScreenState extends State<InboxScreen> {
                                 ),
                               ],
                             ),
+                            if (_searching) ...[
+                              const SizedBox(height: MossSpacing.x3),
+                              TextField(
+                                controller: _searchController,
+                                maxLength: InputLimits.taskTitle,
+                                buildCounter:
+                                    (
+                                      _, {
+                                      required currentLength,
+                                      required isFocused,
+                                      maxLength,
+                                    }) => null,
+                                autofocus: true,
+                                textInputAction: TextInputAction.search,
+                                onChanged: (v) => setState(() => _query = v),
+                                decoration: InputDecoration(
+                                  hintText: 'ค้นหาชื่องานหรือโปรเจกต์…',
+                                  prefixIcon: const Icon(Icons.search_rounded),
+                                  suffixIcon: _query.isEmpty
+                                      ? null
+                                      : IconButton(
+                                          tooltip: 'ล้างคำค้นหา',
+                                          icon: const Icon(
+                                            Icons.cancel_rounded,
+                                          ),
+                                          onPressed: () {
+                                            _searchController.clear();
+                                            setState(() => _query = '');
+                                          },
+                                        ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: MossSpacing.x5),
                             TextField(
                               controller: _controller,
                               focusNode: _focusNode,
                               textInputAction: TextInputAction.done,
-                              maxLength: 120,
+                              maxLength: InputLimits.taskTitle,
                               onSubmitted: (_) => _submit(),
                               decoration: InputDecoration(
                                 hintText: 'เพิ่มงานที่นึกออก…',
@@ -178,6 +250,7 @@ class _InboxScreenState extends State<InboxScreen> {
                                 ],
                                 selected: {_filter},
                                 onSelectionChanged: (selection) {
+                                  MossHaptics.selection();
                                   setState(() => _filter = selection.first);
                                 },
                               ),
@@ -194,7 +267,10 @@ class _InboxScreenState extends State<InboxScreen> {
                       else if (visibleTasks.isEmpty)
                         SliverFillRemaining(
                           hasScrollBody: false,
-                          child: _InboxEmptyState(filter: _filter),
+                          child: _InboxEmptyState(
+                            filter: _filter,
+                            query: _query.trim(),
+                          ),
                         )
                       else
                         SliverPadding(
@@ -278,7 +354,6 @@ class _InboxTaskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.mossTheme;
-    final components = context.mossComponents;
     final hasProject = task.projectName?.trim().isNotEmpty == true;
 
     return Material(
@@ -328,23 +403,35 @@ class _InboxTaskCard extends StatelessWidget {
                         ),
                         if (hasProject) ...[
                           const SizedBox(width: MossSpacing.x2),
-                          Container(
-                            constraints: const BoxConstraints(maxWidth: 120),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: MossSpacing.x2,
-                              vertical: MossSpacing.x1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: components.projectSurface,
-                              borderRadius: BorderRadius.circular(MossRadii.sm),
-                            ),
-                            child: Text(
-                              task.projectName!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelMedium
-                                  ?.copyWith(color: components.projectAccent),
-                            ),
+                          Builder(
+                            builder: (context) {
+                              final pc = MossProjectColors.of(
+                                context,
+                                task.projectName!,
+                              );
+                              return Container(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 120,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: MossSpacing.x2,
+                                  vertical: MossSpacing.x1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: pc.surface,
+                                  borderRadius: BorderRadius.circular(
+                                    MossRadii.sm,
+                                  ),
+                                ),
+                                child: Text(
+                                  task.projectName!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.labelMedium
+                                      ?.copyWith(color: pc.accent),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ],
@@ -373,6 +460,15 @@ class _InboxTaskCard extends StatelessWidget {
                             icon: Icons.hourglass_empty_rounded,
                             label: 'รอจัดเวลา',
                             color: theme.warning,
+                          ),
+                        if (task.priority != MossPriority.normal)
+                          PriorityBadge(priority: task.priority),
+                        if (task.checklist.isNotEmpty)
+                          _TaskMeta(
+                            icon: Icons.checklist_rounded,
+                            label:
+                                '${task.checklistDone}/${task.checklist.length}',
+                            color: theme.textMuted,
                           ),
                       ],
                     ),
@@ -426,13 +522,35 @@ class _TaskMeta extends StatelessWidget {
 }
 
 class _InboxEmptyState extends StatelessWidget {
-  const _InboxEmptyState({required this.filter});
+  const _InboxEmptyState({required this.filter, this.query = ''});
 
   final InboxFilter filter;
+  final String query;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.mossTheme;
+    if (query.isNotEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(MossSpacing.x8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off_rounded, size: 44, color: theme.textMuted),
+              const SizedBox(height: MossSpacing.x3),
+              Text(
+                'ไม่พบงานที่ตรงกับ "$query"',
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(MossSpacing.x8),

@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_primitives.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/moss_task_style.dart';
+import '../../../../core/utils/moss_haptics.dart';
 import '../../../../core/widgets/moss_entrance.dart';
+import '../../../../core/validation/input_limits.dart';
 import '../../domain/task.dart';
 
-class ProjectsScreen extends StatelessWidget {
+class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({
     super.key,
     required this.tasks,
@@ -18,20 +21,52 @@ class ProjectsScreen extends StatelessWidget {
   final ValueChanged<Task> onOpenTask;
 
   @override
+  State<ProjectsScreen> createState() => _ProjectsScreenState();
+}
+
+class _ProjectsScreenState extends State<ProjectsScreen> {
+  final _searchController = TextEditingController();
+  bool _searching = false;
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _toggleSearch() {
+    MossHaptics.selection();
+    setState(() {
+      _searching = !_searching;
+      if (!_searching) {
+        _searchController.clear();
+        _query = '';
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = context.mossTheme;
     final groups = <String, List<Task>>{};
-    for (final task in tasks) {
+    for (final task in widget.tasks) {
       final name = task.projectName?.trim();
       final key = name == null || name.isEmpty ? 'ยังไม่จัดโปรเจกต์' : name;
       groups.putIfAbsent(key, () => []).add(task);
     }
-    final entries = groups.entries.toList()
-      ..sort((a, b) {
-        if (a.key == 'ยังไม่จัดโปรเจกต์') return 1;
-        if (b.key == 'ยังไม่จัดโปรเจกต์') return -1;
-        return a.key.toLowerCase().compareTo(b.key.toLowerCase());
-      });
+
+    final q = _query.trim().toLowerCase();
+    final entries =
+        groups.entries.where((entry) {
+          if (q.isEmpty) return true;
+          if (entry.key.toLowerCase().contains(q)) return true;
+          return entry.value.any((t) => t.title.toLowerCase().contains(q));
+        }).toList()..sort((a, b) {
+          if (a.key == 'ยังไม่จัดโปรเจกต์') return 1;
+          if (b.key == 'ยังไม่จัดโปรเจกต์') return -1;
+          return a.key.toLowerCase().compareTo(b.key.toLowerCase());
+        });
 
     return Scaffold(
       backgroundColor: theme.background,
@@ -41,6 +76,7 @@ class ProjectsScreen extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 920),
             child: CustomScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               slivers: [
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(
@@ -72,13 +108,56 @@ class ProjectsScreen extends StatelessWidget {
                               ],
                             ),
                           ),
+                          IconButton(
+                            tooltip: _searching
+                                ? 'ปิดการค้นหา'
+                                : 'ค้นหาโปรเจกต์',
+                            onPressed: _toggleSearch,
+                            icon: Icon(
+                              _searching
+                                  ? Icons.search_off_rounded
+                                  : Icons.search_rounded,
+                            ),
+                          ),
+                          const SizedBox(width: MossSpacing.x1),
                           IconButton.filledTonal(
                             tooltip: 'เพิ่มงานในโปรเจกต์',
-                            onPressed: onAddTask,
+                            onPressed: widget.onAddTask,
                             icon: const Icon(Icons.add_rounded),
                           ),
                         ],
                       ),
+                      if (_searching) ...[
+                        const SizedBox(height: MossSpacing.x3),
+                        TextField(
+                          controller: _searchController,
+                          maxLength: InputLimits.projectName,
+                          buildCounter:
+                              (
+                                _, {
+                                required currentLength,
+                                required isFocused,
+                                maxLength,
+                              }) => null,
+                          autofocus: true,
+                          textInputAction: TextInputAction.search,
+                          onChanged: (v) => setState(() => _query = v),
+                          decoration: InputDecoration(
+                            hintText: 'ค้นหาโปรเจกต์หรืองานภายใน…',
+                            prefixIcon: const Icon(Icons.search_rounded),
+                            suffixIcon: _query.isEmpty
+                                ? null
+                                : IconButton(
+                                    tooltip: 'ล้างคำค้นหา',
+                                    icon: const Icon(Icons.cancel_rounded),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() => _query = '');
+                                    },
+                                  ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: MossSpacing.x5),
                     ],
                   ),
@@ -86,7 +165,10 @@ class ProjectsScreen extends StatelessWidget {
                 if (entries.isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
-                    child: _ProjectsEmptyState(onAddTask: onAddTask),
+                    child: _ProjectsEmptyState(
+                      onAddTask: widget.onAddTask,
+                      query: _query.trim(),
+                    ),
                   )
                 else
                   SliverPadding(
@@ -114,7 +196,7 @@ class ProjectsScreen extends StatelessWidget {
                                 child: _ProjectCard(
                                   name: entries[index].key,
                                   tasks: entries[index].value,
-                                  onOpenTask: onOpenTask,
+                                  onOpenTask: widget.onOpenTask,
                                 ),
                               ),
                               childCount: entries.length,
@@ -130,7 +212,7 @@ class ProjectsScreen extends StatelessWidget {
                             child: _ProjectCard(
                               name: entries[index].key,
                               tasks: entries[index].value,
-                              onOpenTask: onOpenTask,
+                              onOpenTask: widget.onOpenTask,
                             ),
                           ),
                         );
@@ -160,7 +242,7 @@ class _ProjectCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.mossTheme;
-    final components = context.mossComponents;
+    final projectColor = MossProjectColors.of(context, name);
     final todo = tasks.where((task) => task.status == TaskStatus.todo).toList();
     final doneCount = tasks.length - todo.length;
     final progress = tasks.isEmpty ? 0.0 : doneCount / tasks.length;
@@ -174,7 +256,12 @@ class _ProjectCard extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: preview.isEmpty ? null : () => onOpenTask(preview.first),
+        onTap: preview.isEmpty
+            ? null
+            : () {
+                MossHaptics.light();
+                onOpenTask(preview.first);
+              },
         child: Padding(
           padding: const EdgeInsets.all(MossSpacing.x5),
           child: Column(
@@ -186,12 +273,12 @@ class _ProjectCard extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: components.projectSurface,
+                      color: projectColor.surface,
                       borderRadius: BorderRadius.circular(MossRadii.md),
                     ),
                     child: Icon(
                       Icons.folder_outlined,
-                      color: components.projectAccent,
+                      color: projectColor.accent,
                     ),
                   ),
                   const SizedBox(width: MossSpacing.x3),
@@ -218,7 +305,7 @@ class _ProjectCard extends StatelessWidget {
                   value: progress,
                   minHeight: 6,
                   backgroundColor: theme.surfaceMuted,
-                  color: components.projectAccent,
+                  color: projectColor.accent,
                 ),
               ),
               const SizedBox(height: MossSpacing.x3),
@@ -262,13 +349,36 @@ class _ProjectCard extends StatelessWidget {
 }
 
 class _ProjectsEmptyState extends StatelessWidget {
-  const _ProjectsEmptyState({required this.onAddTask});
+  const _ProjectsEmptyState({required this.onAddTask, this.query = ''});
 
   final VoidCallback onAddTask;
+  final String query;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.mossTheme;
+    if (query.isNotEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(MossSpacing.x8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off_rounded, size: 48, color: theme.textMuted),
+              const SizedBox(height: MossSpacing.x3),
+              Text(
+                'ไม่พบโปรเจกต์ที่ตรงกับ "$query"',
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(MossSpacing.x8),

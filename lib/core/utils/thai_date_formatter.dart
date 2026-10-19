@@ -27,6 +27,31 @@ class ThaiDateFormatter {
     'ธันวาคม',
   ];
 
+  static const List<String> _thaiShortMonths = [
+    'ม.ค.',
+    'ก.พ.',
+    'มี.ค.',
+    'เม.ย.',
+    'พ.ค.',
+    'มิ.ย.',
+    'ก.ค.',
+    'ส.ค.',
+    'ก.ย.',
+    'ต.ค.',
+    'พ.ย.',
+    'ธ.ค.',
+  ];
+
+  /// Returns month name in Thai for month 1-12
+  static String thaiMonthName(int month) => _thaiMonths[month - 1];
+
+  /// Returns short month name in Thai for month 1-12 (e.g. "ต.ค.")
+  static String thaiShortMonthName(int month) => _thaiShortMonths[month - 1];
+
+  /// Formats date to e.g. "15 ตุลาคม"
+  static String formatDate(DateTime date) =>
+      '${date.day} ${_thaiMonths[date.month - 1]}';
+
   /// Formats date to e.g. "วันพุธที่ 30 กันยายน"
   static String formatFullDate(DateTime date) {
     final dayName = _thaiDays[date.weekday - 1];

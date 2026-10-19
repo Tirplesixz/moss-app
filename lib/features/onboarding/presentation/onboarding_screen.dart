@@ -62,6 +62,10 @@ class OnboardingScreen extends StatelessWidget {
                     ),
                     const _Benefit(
                       icon: Icons.calendar_month_rounded,
+                      title: 'ซิงก์นัดหมายกับปฏิทินในเครื่องอัตโนมัติ',
+                    ),
+                    const _Benefit(
+                      icon: Icons.auto_awesome_motion_rounded,
                       title: 'เห็นว่างานไหนถูกขยับก่อนยืนยัน',
                     ),
                     const _Benefit(

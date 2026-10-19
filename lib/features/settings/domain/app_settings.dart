@@ -11,6 +11,10 @@ class AppSettings {
   final String timezone; // e.g. 'Asia/Bangkok'
   final bool onboardingComplete;
   final int paywallInterestCount;
+
+  /// Persisted visual preference: system, light, or dark.
+  final String appearanceMode;
+  final bool saveCompletedToCalendar;
   final DateTime updatedAt; // UTC
   final DateTime? deletedAt; // UTC for soft delete
 
@@ -22,6 +26,8 @@ class AppSettings {
     this.timezone = 'Asia/Bangkok',
     this.onboardingComplete = false,
     this.paywallInterestCount = 0,
+    this.appearanceMode = 'system',
+    this.saveCompletedToCalendar = true,
     required this.updatedAt,
     this.deletedAt,
   });
@@ -36,6 +42,8 @@ class AppSettings {
       timezone: 'Asia/Bangkok',
       onboardingComplete: false,
       paywallInterestCount: 0,
+      appearanceMode: 'system',
+      saveCompletedToCalendar: true,
       updatedAt: now,
     );
   }
@@ -50,6 +58,8 @@ class AppSettings {
     String? timezone,
     bool? onboardingComplete,
     int? paywallInterestCount,
+    String? appearanceMode,
+    bool? saveCompletedToCalendar,
     DateTime? updatedAt,
     DateTime? Function()? deletedAt,
   }) {
@@ -61,6 +71,9 @@ class AppSettings {
       timezone: timezone ?? this.timezone,
       onboardingComplete: onboardingComplete ?? this.onboardingComplete,
       paywallInterestCount: paywallInterestCount ?? this.paywallInterestCount,
+      appearanceMode: appearanceMode ?? this.appearanceMode,
+      saveCompletedToCalendar:
+          saveCompletedToCalendar ?? this.saveCompletedToCalendar,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt != null ? deletedAt() : this.deletedAt,
     );
@@ -75,6 +88,8 @@ class AppSettings {
       'timezone': timezone,
       'onboardingComplete': onboardingComplete,
       'paywallInterestCount': paywallInterestCount,
+      'appearanceMode': appearanceMode,
+      'saveCompletedToCalendar': saveCompletedToCalendar,
       'updatedAt': TimeUtils.toUtcIsoString(updatedAt),
       'deletedAt': deletedAt != null
           ? TimeUtils.toUtcIsoString(deletedAt!)
@@ -91,6 +106,8 @@ class AppSettings {
       timezone: map['timezone'] as String? ?? 'Asia/Bangkok',
       onboardingComplete: map['onboardingComplete'] as bool? ?? false,
       paywallInterestCount: map['paywallInterestCount'] as int? ?? 0,
+      appearanceMode: map['appearanceMode'] as String? ?? 'system',
+      saveCompletedToCalendar: map['saveCompletedToCalendar'] as bool? ?? false,
       updatedAt: TimeUtils.parseUtc(map['updatedAt'] as String),
       deletedAt: map['deletedAt'] != null
           ? TimeUtils.parseUtc(map['deletedAt'] as String)
@@ -110,6 +127,8 @@ class AppSettings {
           timezone == other.timezone &&
           onboardingComplete == other.onboardingComplete &&
           paywallInterestCount == other.paywallInterestCount &&
+          appearanceMode == other.appearanceMode &&
+          saveCompletedToCalendar == other.saveCompletedToCalendar &&
           updatedAt == other.updatedAt &&
           deletedAt == other.deletedAt;
 
@@ -122,6 +141,8 @@ class AppSettings {
       timezone.hashCode ^
       onboardingComplete.hashCode ^
       paywallInterestCount.hashCode ^
+      appearanceMode.hashCode ^
+      saveCompletedToCalendar.hashCode ^
       updatedAt.hashCode ^
       deletedAt.hashCode;
 }

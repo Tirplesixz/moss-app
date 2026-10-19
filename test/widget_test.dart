@@ -5,7 +5,16 @@ import 'package:moss/main.dart';
 
 import 'helpers/test_database.dart';
 
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+
 void main() {
+  setUpAll(() {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    tz.initializeTimeZones();
+  });
+
   testWidgets('first launch shows Moss onboarding', (tester) async {
     final database = await createTestDatabase();
     await tester.pumpWidget(
@@ -14,10 +23,10 @@ void main() {
         child: const MossApp(),
       ),
     );
-    await settleDatabaseIo(tester);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('งานด่วนเข้า\nก็ยังไม่ลน'), findsOneWidget);
     expect(find.text('เริ่มจัดวันนี้'), findsOneWidget);
-    await disposeTestDatabase(tester, database);
   });
 }

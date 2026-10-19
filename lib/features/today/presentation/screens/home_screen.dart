@@ -1,20 +1,53 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/navigation/moss_page_route.dart';
+import '../../../../core/providers/database_providers.dart';
+import '../../../../core/theme/app_primitives.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/moss_motion.dart';
+import '../../../../core/utils/moss_haptics.dart';
 import '../../../settings/presentation/settings_screen.dart';
+import '../../../notes/presentation/note_editor_screen.dart';
+import '../../../notes/presentation/notes_screen.dart';
 import '../../../tasks/domain/block.dart';
 import '../../../tasks/domain/task.dart';
 import '../../../tasks/presentation/screens/add_task_screen.dart';
-import '../../../tasks/presentation/screens/block_detail_sheet.dart';
-import '../../../tasks/presentation/screens/inbox_screen.dart';
-import '../../../tasks/presentation/screens/projects_screen.dart';
 import '../../../tasks/presentation/screens/task_detail_screen.dart';
-import '../../domain/today_item.dart';
 import '../today_controller.dart';
-import 'today_dashboard.dart';
+import '../widgets/add_action_sheet.dart';
+import 'calendar_timeline_screen.dart';
+import 'lockscreen_tab.dart';
+import 'matrix_tasks_screen.dart';
 
+enum _MossDestination {
+  today('งาน', Icons.grid_view_outlined, Icons.grid_view_rounded),
+  calendar(
+    'ปฏิทิน',
+    Icons.calendar_month_outlined,
+    Icons.calendar_month_rounded,
+  ),
+  lockScreen(
+    'ล็อกสกรีน',
+    Icons.screen_lock_portrait_outlined,
+    Icons.screen_lock_portrait_rounded,
+  ),
+  notes('โน้ต', Icons.note_alt_outlined, Icons.note_alt_rounded),
+  settings('ตั้งค่า', Icons.settings_outlined, Icons.settings_rounded);
+
+  const _MossDestination(this.label, this.icon, this.selectedIcon);
+
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+}
+
+/// State-preserving application shell.
+///
+/// Keeps each primary workspace alive so filters, scroll positions, and form
+/// state survive destination changes.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -22,15 +55,100 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
+  DateTime _calendarSelectedDay = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day,
+  );
 
-  Future<void> _openAddTask([String? prefillTitle]) async {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(
+        ref
+            .read(lockScreenSyncServiceProvider)
+            .syncIfEnabled()
+            .then<void>((_) {}),
+      );
+      unawaited(ref.read(todayControllerProvider.notifier).load());
+      unawaited(
+        ref
+            .read(deviceCalendarViewModelProvider)
+            .checkAndLoadSilently(
+              DateTime.now(),
+              onGranted: () async {
+                final settings =
+                    await ref.read(settingsRepositoryProvider).getSettings();
+                if (settings.saveCompletedToCalendar) {
+                  await ref
+                      .read(calendarTaskSyncServiceProvider)
+                      .syncAllTodoTasks();
+                }
+              },
+            ),
+      );
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      unawaited(
+        ref
+            .read(lockScreenSyncServiceProvider)
+            .syncIfEnabled()
+            .then<void>((_) {}),
+      );
+    }
+  }
+
+  Future<void> _openAddTaskAction([DateTime? initialDate]) async {
+    MossHaptics.light();
+    final action = await AddActionSheet.show(context);
+    if (action == null || !mounted) return;
+
+    if (action == AddActionType.note) {
+      await Navigator.of(
+        context,
+      ).push(mossPageRoute<void>(context, const NoteEditorScreen()));
+      return;
+    }
+
     final result = await AddTaskScreen.show(
       context,
-      initialTitle: prefillTitle,
+      initialDate: initialDate,
+      initialQuadrant: switch (action) {
+        AddActionType.event => 2,
+        AddActionType.note => 4,
+        AddActionType.task => 1,
+      },
     );
     if (result == null || !mounted) return;
+    await _saveCreatedItem(result);
+  }
+
+  Future<void> _openAddTaskDirect([String? title, int? quadrant]) async {
+    final result = await AddTaskScreen.show(
+      context,
+      initialTitle: title,
+      initialQuadrant: quadrant,
+    );
+    if (result == null || !mounted) return;
+    await _saveCreatedItem(result);
+  }
+
+  Future<void> _saveCreatedItem(Object result) async {
     final controller = ref.read(todayControllerProvider.notifier);
     if (result is Block) {
       await controller.addFixedBlock(result);
@@ -39,181 +157,154 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  Future<void> _openTask(Task task) async {
-    await Navigator.of(context).push(
-      mossPageRoute<void>(
-        context,
-        TaskDetailScreen(taskId: task.id, initialTask: task),
-      ),
-    );
-  }
-
-  Future<void> _openSettings() async {
-    await Navigator.of(
+  Future<void> _openTask(Task task) => Navigator.of(context).push(
+    mossPageRoute<void>(
       context,
-    ).push(mossPageRoute<void>(context, const SettingsScreen()));
-  }
+      TaskDetailScreen(taskId: task.id, initialTask: task),
+    ),
+  );
 
-  Future<void> _handleTapBlock(TimelineBlockItem item) async {
-    final action = await BlockDetailSheet.show(
-      context,
-      block: item.block,
-      task: item.task,
-    );
-    if (action == null || !mounted) return;
-
-    final controller = ref.read(todayControllerProvider.notifier);
-    switch (action) {
-      case BlockAction.complete:
-        await controller.completeBlock(item.block);
-        break;
-      case BlockAction.toggleLock:
-        await controller.toggleLockBlock(item.block);
-        break;
-      case BlockAction.delete:
-        await controller.deleteBlock(item.block);
-        break;
-      case BlockAction.edit:
-        final editResult = await AddTaskScreen.show(
-          context,
-          editBlock: item.block,
-          editTask: item.task,
-        );
-        if (editResult != null) {
-          await controller.editBlock(item.block, editResult);
-        }
-        break;
-    }
+  void _selectDestination(int index) {
+    if (index == _selectedIndex) return;
+    MossHaptics.selection();
+    setState(() => _selectedIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(todayControllerProvider);
-    final controller = ref.read(todayControllerProvider.notifier);
-    final unscheduledIds = state.overflowTasks.map((task) => task.id).toSet();
-    final destinations = <Widget>[
-      TodayDashboard(
-        state: state,
-        onAddTask: () => _openAddTask(),
-        onOpenSettings: _openSettings,
-        onOpenBlock: _handleTapBlock,
-        onRetry: controller.load,
-      ),
-      InboxScreen(
-        tasks: state.allTasks,
-        unscheduledTaskIds: unscheduledIds,
-        isLoading: state.isLoading,
-        onQuickAdd: controller.quickAddTask,
-        onAddTask: () => _openAddTask(),
+    final mossTheme = context.mossTheme;
+    final showAddTask = _selectedIndex == 0 || _selectedIndex == 1;
+    final pages = <Widget>[
+      MatrixTasksScreen(
         onOpenTask: _openTask,
-        onCompleteTask: controller.completeTask,
-        onReschedule: controller.reschedule,
+        onAddTask: () => _openAddTaskAction(),
+        onAddTaskQuadrant: (quadrant) => _openAddTaskDirect(null, quadrant),
       ),
-      ProjectsScreen(
-        tasks: state.allTasks,
-        onAddTask: () => _openAddTask(),
+      CalendarTimelineScreen(
         onOpenTask: _openTask,
+        onAddTask: _openAddTaskAction,
+        onSelectedDayChanged: (day) => _calendarSelectedDay = day,
       ),
+      const LockScreenTab(),
+      const NotesScreen(),
+      const SettingsScreen(),
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final useRail = constraints.maxWidth >= 840;
+        final expanded = constraints.maxWidth >= MossBreakpoints.expanded;
         final content = IndexedStack(
           index: _selectedIndex,
-          children: destinations,
+          sizing: StackFit.expand,
+          children: pages,
         );
 
-        if (useRail) {
+        if (expanded) {
           return Scaffold(
-            backgroundColor: context.mossTheme.background,
-            body: Row(
-              children: [
-                SafeArea(
-                  child: NavigationRail(
+            backgroundColor: mossTheme.background,
+            body: SafeArea(
+              child: Row(
+                children: [
+                  NavigationRail(
                     selectedIndex: _selectedIndex,
-                    onDestinationSelected: (value) {
-                      setState(() => _selectedIndex = value);
-                    },
                     labelType: NavigationRailLabelType.all,
-                    leading: Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _MossMark(onPressed: _openSettings),
-                    ),
-                    destinations: const [
-                      NavigationRailDestination(
-                        icon: Icon(Icons.calendar_today_outlined),
-                        selectedIcon: Icon(Icons.calendar_today_rounded),
-                        label: Text('วันนี้'),
-                      ),
-                      NavigationRailDestination(
-                        icon: Icon(Icons.format_list_bulleted_rounded),
-                        selectedIcon: Icon(Icons.view_list_rounded),
-                        label: Text('งานเข้า'),
-                      ),
-                      NavigationRailDestination(
-                        icon: Icon(Icons.folder_outlined),
-                        selectedIcon: Icon(Icons.folder_rounded),
-                        label: Text('โปรเจกต์'),
-                      ),
+                    onDestinationSelected: _selectDestination,
+                    destinations: [
+                      for (final item in _MossDestination.values)
+                        NavigationRailDestination(
+                          icon: Icon(item.icon),
+                          selectedIcon: Icon(item.selectedIcon),
+                          label: Text(item.label),
+                        ),
                     ],
                   ),
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(child: content),
-              ],
+                  VerticalDivider(width: 1, color: mossTheme.divider),
+                  Expanded(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: MossBreakpoints.maxContentWidth,
+                        ),
+                        child: content,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
+            floatingActionButton: showAddTask
+                ? FloatingActionButton(
+                    tooltip: 'เพิ่มงาน เหตุการณ์ หรือโน้ต',
+                    onPressed: () => _openAddTaskAction(
+                      _selectedIndex == 1 ? _calendarSelectedDay : null,
+                    ),
+                    child: const Icon(Icons.add_rounded),
+                  )
+                : null,
           );
         }
 
         return Scaffold(
-          backgroundColor: context.mossTheme.background,
+          backgroundColor: mossTheme.background,
           body: content,
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: (value) {
-              setState(() => _selectedIndex = value);
-            },
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.calendar_today_outlined),
-                selectedIcon: Icon(Icons.calendar_today_rounded),
-                label: 'วันนี้',
+          floatingActionButton: AnimatedSwitcher(
+            duration: MossMotion.duration(
+              context,
+              const Duration(milliseconds: 180),
+            ),
+            child: showAddTask
+                ? FloatingActionButton(
+                    key: const ValueKey('add-fab'),
+                    tooltip: 'เพิ่มงาน เหตุการณ์ หรือโน้ต',
+                    onPressed: () => _openAddTaskAction(
+                      _selectedIndex == 1 ? _calendarSelectedDay : null,
+                    ),
+                    child: const Icon(Icons.add_rounded),
+                  )
+                : const SizedBox.shrink(key: ValueKey('no-fab')),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          bottomNavigationBar: SafeArea(
+            minimum: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(32),
+                border: Border.all(color: mossTheme.borderSubtle),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: Theme.of(context).brightness == Brightness.dark
+                          ? 0.28
+                          : 0.08,
+                    ),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-              NavigationDestination(
-                icon: Icon(Icons.format_list_bulleted_rounded),
-                selectedIcon: Icon(Icons.view_list_rounded),
-                label: 'งานเข้า',
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(32),
+                child: NavigationBar(
+                  height: 68,
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: _selectDestination,
+                  destinations: [
+                    for (final item in _MossDestination.values)
+                      NavigationDestination(
+                        key: ValueKey('nav-${item.name}'),
+                        icon: Icon(item.icon),
+                        selectedIcon: Icon(item.selectedIcon),
+                        label: item.label,
+                        tooltip: item.label,
+                      ),
+                  ],
+                ),
               ),
-              NavigationDestination(
-                icon: Icon(Icons.folder_outlined),
-                selectedIcon: Icon(Icons.folder_rounded),
-                label: 'โปรเจกต์',
-              ),
-            ],
+            ),
           ),
         );
       },
-    );
-  }
-}
-
-class _MossMark extends StatelessWidget {
-  const _MossMark({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.mossTheme;
-    return IconButton.filled(
-      tooltip: 'การตั้งค่า',
-      onPressed: onPressed,
-      icon: const Icon(Icons.auto_awesome_rounded),
-      style: IconButton.styleFrom(
-        backgroundColor: theme.primary,
-        foregroundColor: theme.onPrimary,
-      ),
     );
   }
 }

@@ -72,4 +72,51 @@ void main() {
     controller.dispose();
     await database.close();
   });
+
+  test(
+    'TodayController completeTask with repeatRule spawns next task occurrence',
+    () async {
+      final database = await createTestDatabase();
+      final tasks = TaskRepository(database);
+      final controller = TodayController(
+        taskRepository: tasks,
+        blockRepository: BlockRepository(database),
+        settingsRepository: SettingsRepository(database),
+        notificationService: NotificationService(client: _NotificationClient()),
+        eventLogRepository: EventLogRepository(database),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      final baseDate = DateTime.utc(2026, 10, 15, 9, 0);
+      final task = Task(
+        id: 'recurring-daily-1',
+        title: 'ออกกำลังกายเช้า',
+        durationMin: 30,
+        deadlineAt: baseDate,
+        repeatRule: 'ทุกวัน',
+        createdAt: baseDate,
+        updatedAt: baseDate,
+      );
+      await controller.addManualTask(task);
+
+      // Complete the task
+      await controller.completeTask(task);
+
+      // The original task is now done
+      final completed = await tasks.getTaskById(task.id);
+      expect(completed?.status, TaskStatus.done);
+
+      // A new recurring task should have been spawned
+      final activeTasks = await tasks.getActiveTodoTasks();
+      expect(activeTasks.length, 1);
+      final nextTask = activeTasks.first;
+      expect(nextTask.title, 'ออกกำลังกายเช้า');
+      expect(nextTask.repeatRule, TaskRepeatRule.daily.storageValue);
+      expect(nextTask.status, TaskStatus.todo);
+      expect(nextTask.deadlineAt, baseDate.add(const Duration(days: 1)));
+
+      controller.dispose();
+      await database.close();
+    },
+  );
 }
